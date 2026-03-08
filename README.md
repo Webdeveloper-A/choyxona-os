@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Restaurant POS System
 
 Bu loyihada Firebase Firestore va Auth ishlatiladi.
@@ -60,3 +61,6 @@ service cloud.firestore {
 
 - Git status tekshiring: `git status` – maxfiy fayllar ko'rinmasligi kerak.
 - Agar tarixni tozalash kerak: `git filter-repo --invert-paths --paths-from-file .gitignore` (filter-repo o'rnating).
+=======
+# choyxona-os
+>>>>>>> fca7190c8473b4d1ddeb1aed504cc425d0982e7d
