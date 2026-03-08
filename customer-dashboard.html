@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mening sahifam - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-800">Mening sahifam</h1>
+      <div class="flex items-center space-x-4">
+        <span id="customerName" class="text-gray-700"></span>
+        <button id="logoutBtn" class="text-red-600 hover:underline">Chiqish</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-12">
+    <!-- Ma'lumotlar -->
+    <section class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Ma'lumotlarim</h2>
+      <div id="customerInfo" class="space-y-2">
+        <!-- Ma'lumotlar yuklanadi -->
+      </div>
+    </section>
+
+    <!-- Buyurtmalar tarixi -->
+    <section class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Buyurtmalar tarixi</h2>
+      <div id="ordersHistory" class="space-y-4">
+        <!-- Buyurtmalar yuklanadi -->
+      </div>
+    </section>
+
+    <!-- Arizalar statusi -->
+    <section class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Arizalar statusi</h2>
+      <div id="applicationsStatus" class="space-y-4">
+        <!-- Arizalar yuklanadi -->
+      </div>
+    </section>
+
+    <!-- Ishga ariza berish -->
+    <section class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Ishga ariza berish</h2>
+      <div id="applyArea" class="text-center">
+        <button id="applyJobBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-bold transition">Ariza berish</button>
+      </div>
+    </section>
+
+    <!-- Yangi buyurtma -->
+    <section class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Yangi buyurtma berish</h2>
+      <button id="newOrderBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition">Buyurtma berish</button>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script>
+    // simple toast implementation (no external library)
+    function showToast(msg) {
+      const id = 'simple-toast';
+      let div = document.getElementById(id);
+      if (!div) {
+        div = document.createElement('div');
+        div.id = id;
+        div.style.position = 'fixed';
+        div.style.top = '20px';
+        div.style.left = '50%';
+        div.style.transform = 'translateX(-50%)';
+        div.style.background = '#10b981';
+        div.style.color = '#fff';
+        div.style.padding = '12px 24px';
+        div.style.borderRadius = '8px';
+        div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        div.style.zIndex = 10000;
+        document.body.appendChild(div);
+      }
+      div.textContent = msg;
+      div.style.opacity = '1';
+      setTimeout(() => {
+        div.style.transition = 'opacity 0.5s';
+        div.style.opacity = '0';
+      }, 3000);
+    }
+    firebase.initializeApp(window.firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // Sign in anonymously for Firestore access
+    auth.signInAnonymously().catch(err => console.error('Anonymous sign in failed:', err));
+
+    const customerId = localStorage.getItem('customerId');
+    if (!customerId) {
+      window.location.href = 'index.html';
+    }
+
+    // variables to remember
+    let custFirst='', custLast='', custPhone='', custAddress='';
+
+    // Load customer info
+    db.collection('customers').doc(customerId).get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        custFirst = data.firstName;
+        custLast = data.lastName;
+        custPhone = data.phone;
+        custAddress = data.address;
+        document.getElementById('customerName').textContent = `${data.firstName} ${data.lastName}`;
+        document.getElementById('customerInfo').innerHTML = `
+          <p><strong>Ism:</strong> ${data.firstName}</p>
+          <p><strong>Familiya:</strong> ${data.lastName}</p>
+          <p><strong>Telefon:</strong> ${data.phone}</p>
+          <p><strong>Manzil:</strong> ${data.address}</p>
+        `;
+      }
+    });
+
+    // Load orders history
+    // NOTE: this query may require a composite index in Firestore (customerId + createdAt);
+    // if you see an index error in the console follow the link it provides to create one.
+    db.collection('orders').where('customerId', '==', customerId).orderBy('createdAt', 'desc')
+      .onSnapshot(snapshot => {
+        const container = document.getElementById('ordersHistory');
+        container.innerHTML = '';
+        if (snapshot.empty) {
+          container.innerHTML = '<p class="text-gray-500">Buyurtmalar yo‘q</p>';
+          return;
+        }
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const div = document.createElement('div');
+          div.className = 'bg-gray-50 p-4 rounded-lg';
+          div.innerHTML = `
+            <p><strong>№:</strong> ${order.orderNumber ? order.orderNumber : '-'} </p>
+            <p><strong>Status:</strong> ${order.status}</p>
+            <p><strong>Jami:</strong> ${order.total} so'm</p>
+            <p><strong>Vaqt:</strong> ${order.createdAt ? order.createdAt.toDate().toLocaleString() : 'Noma\'lum'}</p>
+            <p><strong>Items:</strong> ${order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}</p>
+          `;
+          container.appendChild(div);
+        });
+      }, err => {
+        console.error('orders history listener failed', err);
+        document.getElementById('ordersHistory').innerHTML = `<p class="text-red-500">Xato: ${err.message}</p>`;
+        showToast('Buyurtmalarni yuklashda xato, konsolni tekshiring');
+      });
+
+    // Load applications status (with notification on change)
+    db.collection('job_applications').where('customerId', '==', customerId).orderBy('createdAt', 'desc')
+      .onSnapshot(snapshot => {
+        const container = document.getElementById('applicationsStatus');
+        container.innerHTML = '';
+        if (snapshot.empty) {
+          container.innerHTML = '<p class="text-gray-500">Arizalar yo‘q</p>';
+          return;
+        }
+        // notify on modifications
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'modified') {
+            const app = change.doc.data();
+            showToast(`Arizangiz statusi: ${app.status}`);
+          }
+        });
+        snapshot.forEach(doc => {
+          const app = doc.data();
+          const div = document.createElement('div');
+          div.className = 'bg-gray-50 p-4 rounded-lg';
+          div.innerHTML = `
+            <p><strong>Lavozim:</strong> ${app.position}</p>
+            <p><strong>Status:</strong> ${app.status}</p>
+            <p><strong>Vaqt:</strong> ${app.createdAt ? app.createdAt.toDate().toLocaleString() : 'Noma\'lum'}</p>
+          `;
+          container.appendChild(div);
+        });
+      }, err => {
+        console.error('applications listener failed', err);
+        document.getElementById('applicationsStatus').innerHTML = `<p class="text-red-500">Xato: ${err.message}</p>`;
+        showToast('Arizalarni yuklashda xato, konsolni tekshiring');
+      });
+
+    // job application form helper
+    function showJobForm() {
+      document.getElementById('applyArea').innerHTML = `
+        <form id="jobForm" class="space-y-4 max-w-lg mx-auto">
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Lavozim</label>
+            <select id="position" class="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+              <option value="">Tanlang</option>
+              <option value="ofitsiant">Ofitsiant</option>
+              <option value="oshxona">Oshxona</option>
+              <option value="kassa">Kassa</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Tajriba (yil)</label>
+            <input id="experience" type="number" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Xabar</label>
+            <textarea id="message" class="w-full border border-gray-300 rounded-lg px-4 py-2" rows="4"></textarea>
+          </div>
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition">Arizani yuborish</button>
+        </form>
+      `;
+
+      document.getElementById('jobForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const position = document.getElementById('position').value;
+        const experience = document.getElementById('experience').value;
+        const message = document.getElementById('message').value;
+        try {
+          await db.collection('job_applications').add({
+            customerId,
+            name: `${custFirst} ${custLast}`,
+            phone: custPhone,
+            address: custAddress,
+            position,
+            experience: parseInt(experience),
+            message,
+            status: 'Ko‘rib chiqilmoqda',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert('Ariza yuborildi!');
+          document.getElementById('applyArea').innerHTML = '<p class="text-green-600">Arizangiz qabul qilindi.</p>';
+        } catch (err) {
+          alert('Xato: ' + err.message);
+        }
+      });
+    }
+
+    // wire apply button
+    document.getElementById('applyJobBtn').addEventListener('click', showJobForm);
+
+    // New order button opens inline menu form
+    document.getElementById('newOrderBtn').addEventListener('click', () => {
+      console.log('New order button clicked');
+      // if form already on page, don't add another
+      if (document.getElementById('orderSection')) return;
+      showOrderForm();
+    });
+
+    function showOrderForm() {
+      document.getElementById('regMsg')?.remove();
+      const main = document.querySelector('main');
+      // add order form at the bottom of main content
+
+      main.insertAdjacentHTML('beforeend', `
+        <div id="orderSection" class="bg-white p-6 rounded-2xl shadow-xl mb-8">
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Buyurtma berish</h3>
+          <div id="orderItems" class="space-y-4 mb-6">Menyu yuklanmoqda...</div>
+          <div class="text-right mb-4">
+            <strong>Jami: <span id="orderTotal">0</span> so'm</strong>
+          </div>
+          <button id="nextStepBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition" disabled>Keyingi bosqich</button>
+        </div>
+      `);
+
+      let orderItems = [];
+      let total = 0;
+      let menuMap = {};
+
+      db.collection("menu").where("available","==",true).get().then(snapshot=>{
+        console.log('Menu items loaded:', snapshot.size);
+        snapshot.forEach(doc=>{
+          menuMap[doc.id] = {...doc.data(), id: doc.id};
+        });
+        renderMenuItems();
+      }).catch(err => {
+        console.error('Menu load failed:', err);
+        alert('Menyu yuklanmadi: ' + err.message);
+      });
+
+      function renderMenuItems() {
+        const container = document.getElementById('orderItems');
+        container.innerHTML = '';
+        Object.values(menuMap).forEach(item=>{
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center p-4 border rounded-lg';
+          div.innerHTML = `
+            <div><strong>${item.name}</strong> - ${item.price} so'm</div>
+            <div class="flex items-center space-x-2">
+              <button class="minus bg-red-500 text-white px-2 py-1 rounded" data-id="${item.id}">-</button>
+              <span class="qty" data-id="${item.id}">0</span>
+              <button class="plus bg-green-500 text-white px-2 py-1 rounded" data-id="${item.id}">+</button>
+            </div>
+          `;
+          container.appendChild(div);
+          div.querySelector('.plus').addEventListener('click',e=>updateQty(e.target.dataset.id,1));
+          div.querySelector('.minus').addEventListener('click',e=>updateQty(e.target.dataset.id,-1));
+        });
+      }
+
+      function updateQty(id,delta){
+        const menuItem = menuMap[id]; if(!menuItem) return;
+        let item = orderItems.find(i=>i.id===id);
+        if(!item){ item={...menuItem,quantity:0}; orderItems.push(item);}        
+        item.quantity+=delta;
+        if(item.quantity<0) item.quantity=0;
+        if(item.quantity===0) orderItems=orderItems.filter(i=>i.id!==id);
+        updateUI();
+      }
+      function updateUI(){
+        total = orderItems.reduce((s,i)=>s+i.price*i.quantity,0);
+        document.getElementById('orderTotal').textContent = total.toLocaleString();
+        const has = orderItems.length>0;
+        document.getElementById('nextStepBtn').disabled = !has;
+        document.querySelectorAll('.qty').forEach(span=>{const id=span.dataset.id;const it=orderItems.find(i=>i.id===id);span.textContent=it?it.quantity:0;});
+      }
+
+      document.getElementById('nextStepBtn').addEventListener('click', showOrderOptions);
+      function showOrderOptions(){
+        const sec=document.getElementById('orderSection');
+        sec.innerHTML=`
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Tanlovlar</h3>
+          <div class="space-y-4 mb-6">
+            <div><label><input type="radio" name="orderType" value="pickup" checked> Olib ketish</label> &nbsp;<label><input type="radio" name="orderType" value="dinein"> Restoranda yeyish</label></div>
+            <div><label><input type="radio" name="paymentType" value="karta" checked> Karta</label> &nbsp;<label><input type="radio" name="paymentType" value="naqd"> Naqd</label></div>
+          </div>
+          <button id="finalizeBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition">Tasdiqlash</button>
+        `;
+        document.getElementById('finalizeBtn').addEventListener('click',async()=>{
+          console.log('Finalize button clicked');
+          const type=document.querySelector('input[name=orderType]:checked').value;
+          const payment=document.querySelector('input[name=paymentType]:checked').value;
+          console.log('Order type:', type, 'Payment:', payment);
+          try{
+            console.log('Starting transaction for orderNumber');
+            // use transaction to generate a reliable incrementing number
+            const orderNumber = await db.runTransaction(async tx => {
+              const counterRef = db.collection('counters').doc('customerOrders');
+              const counterDoc = await tx.get(counterRef);
+              let last = 0;
+              if (counterDoc.exists) {
+                last = counterDoc.data().last || 0;
+              }
+              const next = last + 1;
+              tx.set(counterRef, { last: next }, { merge: true });
+              return ('000' + next).slice(-3);
+            });
+            console.log('Order number generated:', orderNumber);
+
+            console.log('Adding order to Firestore');
+            await db.collection('orders').add({
+              customerId,
+              // label this as a customer-originated request so kitchen can separate it
+              placeType: 'customer',
+              placeName: document.getElementById('customerName').textContent,
+              customerName: document.getElementById('customerName').textContent,
+              phone: custPhone,
+              address: custAddress,
+              items: orderItems.map(i => ({name: i.name, price: i.price, quantity: i.quantity})),
+              total,
+              orderType: type,
+              paymentType: payment,
+              orderNumber,          // three-digit sequence
+              status: 'yuborildi',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('Order added successfully');
+            alert('Buyurtma yuborildi!');
+            const sec = document.getElementById('orderSection');
+            if (sec) sec.remove();
+          }catch(e){
+            console.error('order finalization failed', e);
+            alert('Xato: '+e.message);
+          }
+        });
+      }
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('customerId');
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

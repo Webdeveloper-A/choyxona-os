@@ -1,0 +1,7 @@
+node_modules/
+*.local
+.env
+service-account*.json
+firebase-adminsdk*.json
+*.json  # agar faqat maxfiy JSON lar bo'lsa
+node_modules/

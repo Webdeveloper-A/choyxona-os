@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="uz" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
+  <title>Choyxona OS - Kirish</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full flex items-center justify-center px-4">
+
+  <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-teal-700">Choyxona OS</h1>
+      <p class="text-gray-600 mt-2">Restoran / Choyxona boshqaruv tizimi</p>
+    </div>
+
+    <form id="loginForm" class="space-y-6" novalidate>
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email manzil</label>
+        <input id="email" type="email" required autocomplete="email"
+               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm px-4 py-3" 
+               placeholder="test@choyxona.uz" />
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700">Parol</label>
+        <div class="relative">
+          <input id="password" type="password" required autocomplete="current-password"
+                 class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm px-4 py-3 pr-12" 
+                 placeholder="••••••••" />
+          <button id="togglePwd" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-500 hover:text-gray-800">
+            Ko'rish
+          </button>
+        </div>
+      </div>
+      <button id="submitBtn" type="submit" 
+              class="w-full bg-teal-600 text-white py-3 rounded-lg font-medium hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition duration-200">
+        <span id="btnText">Tizimga kirish</span>
+      </button>
+
+      <div class="flex justify-between items-center text-sm mt-2">
+        <a href="#" id="forgotBtn" class="text-teal-600 hover:underline">Parolni tiklash</a>
+        <a href="register.html" class="text-gray-600 hover:underline">Ro'yxatdan o'tish</a>
+      </div>
+    </form>
+
+    <p id="errorMsg" class="mt-4 text-red-600 text-center font-medium hidden"></p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="assets/js/helpers.js"></script>
+  <script src="firebase-config.js"></script>
+
+<script>
+  // use global firebaseConfig defined by firebase-config.js
+  firebase.initializeApp(window.firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const form = document.getElementById('loginForm');
+  const errorMsg = document.getElementById('errorMsg');
+   const submitBtn = document.getElementById('submitBtn');
+   const btnText = document.getElementById('btnText');
+   const togglePwd = document.getElementById('togglePwd');
+   const forgotBtn = document.getElementById('forgotBtn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    errorMsg.classList.add('hidden');
+    errorMsg.textContent = '';
+
+     // Basic client-side validation
+     if (!email) {
+       errorMsg.textContent = 'Iltimos email manzilini kiriting.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+     if (!isValidEmail(email)) {
+       errorMsg.textContent = 'Email manzili noto\'g\'ri formatda.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+     if (!password) {
+       errorMsg.textContent = 'Iltimos parolni kiriting.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+     if (password.length < 6) {
+       errorMsg.textContent = 'Parol kamida 6 ta belgi bo\'lishi kerak.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+
+     // Set loading state
+     submitBtn.disabled = true;
+     btnText.textContent = 'Kirish...';
+
+    try {
+      const userCredential = await auth.signInWithEmailAndPassword(email, password);
+      const user = userCredential.user;
+
+      console.log("Kirish muvaffaqiyatli:", user.email, "UID:", user.uid);
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        throw new Error("Foydalanuvchi ma'lumotlari topilmadi. Admin bilan bog'laning.");
+      }
+
+      const data = userDoc.data();
+      const role = data.role;
+
+      console.log("Firestore'dan olingan rol:", role);
+
+      if (!role) {
+        throw new Error("Rol maydoni bo'sh. Admin bilan bog'laning.");
+      }
+
+      let targetPage = "";
+
+      switch (role.toLowerCase()) {
+        case "admin":
+          targetPage = "dashboard-admin.html";
+          break;
+        case "ofitsiant":
+          targetPage = "dashboard-ofitsiant.html";
+          break;
+        case "kassa":
+          targetPage = "cashier.html";
+          break;
+        case "oshxona":
+          targetPage = "kitchen.html";
+          break;
+        default:
+          throw new Error("Noma'lum rol: " + role);
+      }
+
+      console.log("Redirect qilinmoqda →", targetPage);
+      window.location.href = targetPage;
+
+    } catch (error) {
+      console.error("Kirish yoki redirectda xato:", error);
+       // Friendly error mapping
+       let message = "Xato yuz berdi. Qayta urinib ko'ring.";
+       if (error.code) {
+         switch (error.code) {
+           case 'auth/invalid-email': message = 'Email manzili noto‘g‘ri formatda.'; break;
+           case 'auth/user-not-found': message = 'Bu email bilan foydalanuvchi topilmadi.'; break;
+           case 'auth/wrong-password': message = 'Parol noto‘g‘ri.'; break;
+           case 'auth/too-many-requests': message = 'Ko‘p urinishlar. Keyinroq urinib ko‘ring.'; break;
+           default: message = error.message || ('Xato kodi: ' + error.code);
+         }
+       } else if (error.message) {
+         if (error.message.includes("topilmadi")) message = "Foydalanuvchi ma'lumotlari bazada yo'q.";
+         else if (error.message.includes("rol")) message = "Rol aniqlanmadi yoki noto'g'ri.";
+       }
+
+       errorMsg.textContent = message;
+       errorMsg.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      btnText.textContent = 'Tizimga kirish';
+    }
+  });
+
+  // Sessiya tekshiruvi (agar allaqachon kirgan bo'lsa)
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      console.log("Allaqqachon kirgan:", user.email, "UID:", user.uid);
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      if (userDoc.exists) {
+        const role = userDoc.data().role || "ofitsiant";
+        let targetPage = "";
+
+        switch (role.toLowerCase()) {
+          case "admin": targetPage = "dashboard-admin.html"; break;
+          case "ofitsiant": targetPage = "dashboard-ofitsiant.html"; break;
+          case "kassa": targetPage = "cashier.html"; break;
+          case "oshxona": targetPage = "kitchen.html"; break;
+        }
+
+        if (targetPage && !window.location.pathname.includes(targetPage)) {
+          console.log("Sessiya bo'yicha redirect →", targetPage);
+          window.location.href = targetPage;
+        }
+      }
+    }
+  });
+
+   // Toggle password visibility
+   togglePwd.addEventListener('click', () => {
+     const pwd = document.getElementById('password');
+     if (pwd.type === 'password') {
+       pwd.type = 'text';
+       togglePwd.textContent = "Yashirish";
+     } else {
+       pwd.type = 'password';
+       togglePwd.textContent = "Ko'rish";
+     }
+   });
+
+   // Password reset flow
+   forgotBtn.addEventListener('click', async (e) => {
+     e.preventDefault();
+     const email = document.getElementById('email').value.trim();
+     if (!email) {
+       errorMsg.textContent = 'Iltimos qayta tiklash uchun email kiriting.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+     if (!isValidEmail(email)) {
+       errorMsg.textContent = 'Email manzili noto\'g\'ri formatda.';
+       errorMsg.classList.remove('hidden');
+       return;
+     }
+
+     try {
+       await auth.sendPasswordResetEmail(email);
+       errorMsg.textContent = 'Parol tiklash havolasi yuborildi. Iltimos emailni tekshiring.';
+       errorMsg.classList.remove('hidden');
+     } catch (err) {
+       console.error('Parol tiklashda xato:', err);
+       const msg = getFriendlyErrorMessage(err.code, err.message);
+       errorMsg.textContent = msg;
+       errorMsg.classList.remove('hidden');
+     }
+   });
+</script>
+
+</body>
+</html>

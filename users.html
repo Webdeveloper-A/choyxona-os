@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foydalanuvchilar - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-800">Foydalanuvchilar</h1>
+      <button onclick="window.location.href='index.html'" class="text-indigo-600 hover:underline">Orqaga</button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-12">
+    <!-- attractor banner with images -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+      <div class="h-64 bg-cover bg-center rounded-2xl" style="background-image:url('https://source.unsplash.com/800x600/?tea-house');"></div>
+      <div class="h-64 bg-cover bg-center rounded-2xl" style="background-image:url('https://source.unsplash.com/800x600/?dishes,food');"></div>
+    </div>
+    <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Ro‘yxatdan o‘ting</h2>
+    <p class="text-gray-600 text-center mb-8">Iltimos, quyidagi maydonlarni to‘ldirib, xizmatlardan foydalanishni boshlang.</p>
+
+    <div id="regMsg" class="text-green-600 font-medium text-center mb-6"></div>
+
+    <form id="regForm" class="space-y-6 max-w-lg mx-auto">
+      <div>
+        <label for="firstName" class="block text-left text-gray-700 font-medium mb-1">Ism</label>
+        <input id="firstName" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+      </div>
+      <div>
+        <label for="lastName" class="block text-left text-gray-700 font-medium mb-1">Familiya</label>
+        <input id="lastName" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+      </div>
+      <div>
+        <label for="phone" class="block text-left text-gray-700 font-medium mb-1">Telefon raqam</label>
+        <input id="phone" type="tel" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+      </div>
+      <div>
+        <label for="address" class="block text-left text-gray-700 font-medium mb-1">Manzil</label>
+        <input id="address" type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-bold transition">Ro‘yxatdan o‘tish</button>
+    </form>
+  </main>
+
+  <footer class="bg-gray-800 text-white py-6 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <p>© 2026 Choyxona OS</p>
+    </div>
+  </footer>
+
+  <!-- Firebase config & logic -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(window.firebaseConfig);
+    const db = firebase.firestore();
+
+    document.getElementById('regForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = 'Iltimos kuting...';
+
+      const first = document.getElementById('firstName').value.trim();
+      const last = document.getElementById('lastName').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const address = document.getElementById('address').value.trim();
+      if (!first || !last || !phone || !address) {
+        alert('Iltimos barcha maydonlarni to\'ldiring');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+
+      try {
+        const docRef = await db.collection('customers').add({
+          firstName: first,
+          lastName: last,
+          phone: phone,
+          address: address,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        const customerId = docRef.id;
+        localStorage.setItem('customerId', customerId);
+
+        document.getElementById('regForm').remove();
+        document.getElementById('regMsg').innerHTML = `
+          <div class="text-center">
+            <p class="text-green-600 font-medium mb-6">Rahmat! Siz ro‘yxatdan o‘tdingiz.</p>
+            <div class="space-y-4">
+              <button id="orderBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition">Buyurtma berish</button>
+              <button id="jobBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition">Ishga ariza berish</button>
+            </div>
+          </div>
+        `;
+
+        // Add event listeners for new buttons
+        document.getElementById('orderBtn').addEventListener('click', () => showOrderForm(customerId, first, last, phone, address));
+        document.getElementById('jobBtn').addEventListener('click', () => showJobForm(customerId, first, last, phone, address));
+      } catch (err) {
+        alert('Xato: ' + err.message);
+        console.error('Registration failed:', err);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    });
+
+    function showOrderForm(customerId, first, last, phone, address) {
+      document.getElementById('regMsg').innerHTML = `
+        <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Buyurtma berish</h3>
+        <div id="orderItems" class="space-y-4 mb-6"></div>
+        <div class="text-right mb-4">
+          <strong>Jami: <span id="orderTotal">0</span> so'm</strong>
+        </div>
+        <button id="nextStepBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition" disabled>Keyingi bosqich</button>
+      `;
+
+      let orderItems = [];
+      let total = 0;
+
+      // Load menu
+      db.collection("menu").where("available", "==", true).onSnapshot(snapshot => {
+        const container = document.getElementById('orderItems');
+        container.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          item.id = doc.id;
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center p-4 border rounded-lg';
+          div.innerHTML = `
+            <div>
+              <strong>${item.name}</strong> - ${item.price} so'm
+            </div>
+            <div class="flex items-center space-x-2">
+              <button class="minus bg-red-500 text-white px-2 py-1 rounded" data-id="${item.id}">-</button>
+              <span class="qty">0</span>
+              <button class="plus bg-green-500 text-white px-2 py-1 rounded" data-id="${item.id}">+</button>
+            </div>
+          `;
+          container.appendChild(div);
+
+          div.querySelector('.plus').addEventListener('click', () => updateQty(item.id, 1));
+          div.querySelector('.minus').addEventListener('click', () => updateQty(item.id, -1));
+        });
+      });
+
+      function updateQty(id, delta) {
+        const item = orderItems.find(i => i.id === id);
+        if (!item) {
+          const menuItem = { id, name: '', price: 0, quantity: 0 }; // need to get from menu
+          // Actually, get from snapshot, but for simplicity, assume we have it.
+          // Better to store menu items in a map.
+        }
+        // Simplified: assume we have the item.
+        // To fix, let's store menu in a map.
+      }
+
+      // Better way: store menu items
+      let menuMap = {};
+      db.collection("menu").where("available", "==", true).get().then(snapshot => {
+        snapshot.forEach(doc => {
+          menuMap[doc.id] = doc.data();
+          menuMap[doc.id].id = doc.id;
+        });
+        // Now render items
+        renderMenuItems();
+      });
+
+      function renderMenuItems() {
+        const container = document.getElementById('orderItems');
+        container.innerHTML = '';
+        Object.values(menuMap).forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center p-4 border rounded-lg';
+          div.innerHTML = `
+            <div>
+              <strong>${item.name}</strong> - ${item.price} so'm
+            </div>
+            <div class="flex items-center space-x-2">
+              <button class="minus bg-red-500 text-white px-2 py-1 rounded" data-id="${item.id}">-</button>
+              <span class="qty" data-id="${item.id}">0</span>
+              <button class="plus bg-green-500 text-white px-2 py-1 rounded" data-id="${item.id}">+</button>
+            </div>
+          `;
+          container.appendChild(div);
+
+          div.querySelector('.plus').addEventListener('click', (e) => updateQty(e.target.dataset.id, 1));
+          div.querySelector('.minus').addEventListener('click', (e) => updateQty(e.target.dataset.id, -1));
+        });
+      }
+
+      function updateQty(id, delta) {
+        const menuItem = menuMap[id];
+        if (!menuItem) return;
+        let item = orderItems.find(i => i.id === id);
+        if (!item) {
+          item = { ...menuItem, quantity: 0 };
+          orderItems.push(item);
+        }
+        item.quantity += delta;
+        if (item.quantity < 0) item.quantity = 0;
+        if (item.quantity === 0) {
+          orderItems = orderItems.filter(i => i.id !== id);
+        }
+        updateUI();
+      }
+
+      function updateUI() {
+        total = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+        document.getElementById('orderTotal').textContent = total.toLocaleString();
+        const hasItems = orderItems.length > 0;
+        document.getElementById('submitOrderBtn')?.setAttribute('disabled', !hasItems);
+        document.getElementById('nextStepBtn')?.setAttribute('disabled', !hasItems);
+        // Update qty displays
+        document.querySelectorAll('.qty').forEach(span => {
+          const id = span.dataset.id;
+          const item = orderItems.find(i => i.id === id);
+          span.textContent = item ? item.quantity : 0;
+        });
+      }
+
+      // move to second step when ready
+      document.getElementById('nextStepBtn').addEventListener('click', showOrderOptions);
+
+      async function submitFinalOrder(type, payment) {
+        try {
+          await db.collection('orders').add({
+            customerId,
+            customerName: `${first} ${last}`,
+            phone,
+            address,
+            items: orderItems.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+            total,
+            orderType: type, // 'pickup' or 'dinein'
+            paymentType: payment, // 'karta' or 'naqd'
+            status: 'yuborildi',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert('Buyurtma yuborildi!');
+        } catch (err) {
+          alert('Xato: ' + err.message);
+        }
+      }
+
+      function showOrderOptions() {
+        document.getElementById('regMsg').innerHTML = `
+          <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Ovoz berish</h3>
+          <div class="space-y-4 mb-6">
+            <div>
+              <label class="font-medium">Berish turi:</label><br>
+              <label><input type="radio" name="orderType" value="pickup" checked> Olib ketish</label> &nbsp;
+              <label><input type="radio" name="orderType" value="dinein"> Restoranda yeyish</label>
+            </div>
+            <div>
+              <label class="font-medium">To'lov turi:</label><br>
+              <label><input type="radio" name="paymentType" value="karta" checked> Karta</label> &nbsp;
+              <label><input type="radio" name="paymentType" value="naqd"> Naqd</label>
+            </div>
+          </div>
+          <button id="finalizeBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition">Tasdiqlash</button>
+        `;
+        document.getElementById('finalizeBtn').addEventListener('click', () => {
+          const type = document.querySelector('input[name=orderType]:checked').value;
+          const payment = document.querySelector('input[name=paymentType]:checked').value;
+          submitFinalOrder(type, payment);
+        });
+      }
+    }
+
+    function showJobForm(customerId, first, last, phone, address) {
+      document.getElementById('regMsg').innerHTML = `
+        <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Ishga ariza berish</h3>
+        <form id="jobForm" class="space-y-4">
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Lavozim</label>
+            <select id="position" class="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+              <option value="">Tanlang</option>
+              <option value="ofitsiant">Ofitsiant</option>
+              <option value="oshxona">Oshxona</option>
+              <option value="kassa">Kassa</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Tajriba (yil)</label>
+            <input id="experience" type="number" class="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-medium mb-1">Xabar</label>
+            <textarea id="message" class="w-full border border-gray-300 rounded-lg px-4 py-2" rows="4"></textarea>
+          </div>
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition">Arizani yuborish</button>
+        </form>
+      `;
+
+      document.getElementById('jobForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const position = document.getElementById('position').value;
+        const experience = document.getElementById('experience').value;
+        const message = document.getElementById('message').value;
+        try {
+          await db.collection('job_applications').add({
+            customerId,
+            name: `${first} ${last}`,
+            phone,
+            address,
+            position,
+            experience: parseInt(experience),
+            message,
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert('Ariza yuborildi!');
+        } catch (err) {
+          alert('Xato: ' + err.message);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

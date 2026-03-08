@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
+  <title>Ofitsiant Paneli - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="assets/js/helpers.js"></script>
+  <!-- Toast bildirishnoma uchun -->
+  <link rel="stylesheet" href="assets/css/toastify.min.css">
+  <script src="assets/js/toastify.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-teal-700 text-white shadow-lg">
+
+  <!-- ready notifications panels (persistent messages) -->
+  <div class="fixed top-20 right-4 z-50 pointer-events-none">
+    <!-- table notifications -->
+    <div id="readyNotificationsTables" class="flex flex-col space-y-2">
+      <div class="text-xs font-bold text-teal-600 mb-1 pointer-events-auto">Stollar</div>
+    </div>
+    <!-- room notifications (separated below) -->
+    <div id="readyNotificationsRooms" class="flex flex-col space-y-2 mt-6">
+      <div class="text-xs font-bold text-teal-600 mb-1 pointer-events-auto">Xonalar</div>
+    </div>
+  </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight">Ofitsiant Paneli</h1>
+      <div class="flex items-center space-x-6">
+        <span id="userEmail" class="text-base font-medium"></span>
+        <button id="logoutBtn" class="bg-red-700 hover:bg-red-800 px-5 py-2 rounded-lg font-medium transition">
+          Chiqish
+        </button>
+        <button id="enableSoundBtn" class="bg-teal-600 hover:bg-teal-700 px-3 py-2 rounded-lg text-white">
+          🔔 Ovozlarni yoqish
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Asosiy kontent -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Stollar va xonalar bo'limi -->
+      <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Stollar</h2>
+        <div id="tablesGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+          <div class="col-span-full text-center py-10">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto mb-4"></div>
+            <p class="text-gray-600">Stollar yuklanmoqda...</p>
+          </div>
+        </div>
+
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 mt-8">Xonalar</h2>
+        <div id="roomsGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+          <div class="col-span-full text-center py-10">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mx-auto mb-4"></div>
+            <p class="text-gray-600">Xonalar yuklanmoqda...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buyurtma yaratish bo'limi -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Yangi buyurtma</h2>
+
+        <div id="selectedPlaceInfo" class="mb-6 p-5 bg-gray-50 rounded-xl hidden border-l-4 border-teal-500">
+          <p class="font-semibold text-lg"><span id="selectedPlaceLabel">Tanlangan stol</span>: <span id="selectedPlaceNumber" class="text-teal-700"></span></p>
+          <p class="text-gray-600 mt-1">Holati: <span id="selectedPlaceStatus" class="font-medium"></span></p>
+        </div>
+
+        <!-- Buyurtma ro'yxati -->
+        <div id="orderList" class="mb-8 min-h-[250px] border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gray-50">
+          <p class="text-gray-500 text-center py-16">Stol tanlang va taomlarni qo'shing...</p>
+        </div>
+
+        <!-- Jami summasi -->
+        <div class="flex justify-between items-center mb-6 text-xl font-bold text-gray-800">
+          <span>Jami:</span>
+          <span id="totalSum" class="text-teal-700">0 so'm</span>
+        </div>
+
+        <!-- Buyurtmani yuborish -->
+        <button id="submitOrderBtn" disabled class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+          Buyurtmani yuborish
+        </button>
+
+        <!-- Taomlar ro'yxati -->
+        <div class="mt-10">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">Taomlar ro'yxati</h3>
+          <div id="menuGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(window.firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // O‘zgaruvchilar
+    const tablesGrid = document.getElementById('tablesGrid');
+    const roomsGrid = document.getElementById('roomsGrid');
+    const selectedPlaceInfo = document.getElementById('selectedPlaceInfo');
+    const selectedPlaceLabel = document.getElementById('selectedPlaceLabel');
+    const selectedPlaceNumber = document.getElementById('selectedPlaceNumber');
+    const selectedPlaceStatus = document.getElementById('selectedPlaceStatus');
+    const orderList = document.getElementById('orderList');
+    const totalSumEl = document.getElementById('totalSum');
+    const submitOrderBtn = document.getElementById('submitOrderBtn');
+    const menuGrid = document.getElementById('menuGrid');
+
+    let selectedPlace = null;
+    let currentOrder = [];
+    let total = 0;
+    let watchingOrderId = null;
+    let orderUnsubscribe = null;
+    // Sound / audio control
+    let soundsEnabled = localStorage.getItem('soundsEnabled') === 'true';
+    let audioContext = null;
+    let audioUnlocked = false;
+
+    function updateSoundButton() {
+      const btn = document.getElementById('enableSoundBtn');
+      if (!btn) return;
+      btn.textContent = soundsEnabled ? '🔕 Ovozlarni o‘chirish' : '🔔 Ovozlarni yoqish';
+    }
+
+    async function unlockAudio() {
+      try {
+        if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        audioUnlocked = true;
+        soundsEnabled = true;
+        localStorage.setItem('soundsEnabled', 'true');
+        updateSoundButton();
+        playWebAudioBeep();
+      } catch (e) {
+        console.warn('unlockAudio failed', e);
+      }
+    }
+
+    function disableSounds() {
+      soundsEnabled = false;
+      localStorage.setItem('soundsEnabled', 'false');
+      updateSoundButton();
+    }
+
+    function playWebAudioBeep() {
+      try {
+        if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioContext.createOscillator();
+        const g = audioContext.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, audioContext.currentTime);
+        g.gain.setValueAtTime(0.0001, audioContext.currentTime);
+        o.connect(g);
+        g.connect(audioContext.destination);
+        o.start();
+        g.gain.exponentialRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+        setTimeout(() => { try { o.stop(); o.disconnect(); g.disconnect(); } catch (e) {} }, 600);
+      } catch (e) {
+        console.warn('❌ WebAudio beep failed:', e);
+      }
+    }
+
+    async function playNotificationSound() {
+      if (!soundsEnabled) {
+        return;
+      }
+      const src = "https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-1-100.mp3";
+      try {
+        const audio = new Audio(src);
+        const p = audio.play();
+        if (p && p.catch) {
+          p.catch(err => {
+            console.warn('❌ Audio play failed:', err.message, '- Falling back to WebAudio');
+            playWebAudioBeep();
+          });
+        }
+      } catch (e) {
+        console.warn('❌ Audio constructor failed:', e.message, '- Using WebAudio');
+        playWebAudioBeep();
+      }
+    }
+
+    // Foydalanuvchi tekshiruvi
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      let role = "ofitsiant";
+
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        role = data.role || "ofitsiant";
+
+        const displayName = data.name || user.email.split('@')[0];
+        document.getElementById('userEmail').innerHTML = `
+          ${displayName} <span class="text-xs bg-white/20 px-3 py-1 rounded-full ml-3">${role}</span>
+        `;
+      } else {
+        document.getElementById('userEmail').textContent = user.email + " (rol topilmadi)";
+      }
+
+      if (role !== "ofitsiant") {
+        showNotification("Bu sahifaga faqat ofitsiant kira oladi!", 'error', 4000);
+        if (role === "admin") window.location.href = 'dashboard-admin.html';
+        else if (role === "kassa") window.location.href = 'cashier.html';
+        else if (role === "oshxona") window.location.href = 'kitchen.html';
+        return;
+      }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'login.html');
+    });
+
+    // Places real-time (tables + rooms)
+    function renderPlaceCard(doc, place, type) {
+      const card = document.createElement('div');
+      const status = (place.status || '').toLowerCase();
+      const baseClass = 'p-5 rounded-xl text-center cursor-pointer transition-all border-2 shadow-sm hover:shadow-md';
+      let statusClass = 'bg-yellow-50 border-yellow-400 hover:bg-yellow-100';
+      if (status === "bo'sh" || status === "bosh") statusClass = 'bg-green-50 border-green-400 hover:bg-green-100';
+      else if (status === 'band') statusClass = 'bg-red-50 border-red-400 hover:bg-red-100';
+      card.className = `${baseClass} ${statusClass}`;
+
+      // info
+      const title = document.createElement('div');
+      title.className = 'text-2xl font-bold mb-1';
+      title.textContent = type === 'table' ? place.number : place.name;
+
+      const st = document.createElement('div');
+      st.className = 'text-sm font-medium capitalize';
+      st.textContent = place.status;
+
+      const cap = document.createElement('div');
+      cap.className = 'text-xs text-gray-500 mt-1';
+      cap.textContent = `${place.capacity || '?'} kishi`;
+
+      card.appendChild(title);
+      card.appendChild(st);
+      card.appendChild(cap);
+
+      card.addEventListener('click', () => {
+        selectedPlace = { type, id: doc.id, ...place };
+        selectedPlaceLabel.textContent = type === 'table' ? 'Tanlangan stol' : 'Tanlangan xona';
+        selectedPlaceNumber.textContent = type === 'table' ? place.number : place.name;
+        selectedPlaceStatus.textContent = place.status;
+        selectedPlaceInfo.classList.remove('hidden');
+        const enabled = (place.status || '').toLowerCase() === "bo'sh" || (place.status || '').toLowerCase() === 'band';
+        submitOrderBtn.disabled = !enabled;
+        updateSelectedPlaceControls();
+        watchSelectedPlace(doc.id, type);
+      });
+
+      // clear button for cleaning state
+      if ((place.status || '').toLowerCase() === 'tozalanyapti') {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition';
+        clearBtn.textContent = type === 'table' ? "Stolni bo‘sh qilish" : "Xonani bo‘sh qilish";
+        clearBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          clearPlace(doc.id, type, type === 'table' ? place.number : place.name);
+        });
+        card.appendChild(clearBtn);
+      }
+
+      const target = type === 'table' ? tablesGrid : roomsGrid;
+      target.appendChild(card);
+    }
+
+    // load tables
+    db.collection("tables").orderBy("number").onSnapshot(snapshot => {
+      tablesGrid.innerHTML = '';
+      if (snapshot.empty) {
+        tablesGrid.innerHTML = '<p class="text-gray-500 text-center py-10 col-span-full">Stollar hali yaratilmagan</p>';
+        return;
+      }
+      snapshot.forEach(doc => renderPlaceCard(doc, doc.data(), 'table'));
+    });
+
+    // load rooms into separate grid
+    db.collection("rooms").orderBy("name").onSnapshot(snapshot => {
+      roomsGrid.innerHTML = '';
+      if (snapshot.empty) {
+        roomsGrid.innerHTML = '<p class="text-gray-500 text-center py-10 col-span-full">Xonalar hali yaratilmagan</p>';
+        return;
+      }
+      snapshot.forEach(doc => renderPlaceCard(doc, doc.data(), 'room'));
+    });
+
+    // watch a single place for status updates, keep info panel synced
+    let selectedPlaceUnsub = null;
+    function watchSelectedPlace(docId, type) {
+      if (selectedPlaceUnsub) {
+        try { selectedPlaceUnsub(); } catch (e) { console.warn('unsub failed', e); }
+        selectedPlaceUnsub = null;
+      }
+      const coll = type === 'table' ? 'tables' : 'rooms';
+      selectedPlaceUnsub = db.collection(coll).doc(docId).onSnapshot(d => {
+        if (!d.exists) return;
+        const data = d.data();
+        if (selectedPlace && selectedPlace.id === docId) {
+          selectedPlace.status = data.status;
+          selectedPlaceStatus.textContent = data.status;
+          updateSelectedPlaceControls();
+        }
+      });
+    }
+
+    // helper to display a context-aware action button inside selectedPlaceInfo
+    function updateSelectedPlaceControls() {
+      // remove old button if any
+      const old = document.getElementById('placeActionBtn');
+      if (old) old.remove();
+      if (!selectedPlace) return;
+      const status = (selectedPlace.status || '').toLowerCase();
+      const btn = document.createElement('button');
+      btn.id = 'placeActionBtn';
+      btn.className = 'mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition';
+
+      function changeStatus(newStatus) {
+        if (!selectedPlace) return;
+        const coll = selectedPlace.type === 'table' ? 'tables' : 'rooms';
+        const label = selectedPlace.type === 'table' ? selectedPlace.number : selectedPlace.name;
+        db.collection(coll).doc(selectedPlace.id).update({
+          status: newStatus,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+          selectedPlace.status = newStatus;
+          selectedPlaceStatus.textContent = newStatus;
+          showNotification(`${label} holati '${newStatus}' ga o'zgartirildi!`, 'success', 3000);
+          updateSelectedPlaceControls();
+        }).catch(err => {
+          console.error('Status update error:', err);
+          showNotification('Xato: ' + err.message, 'error', 5000);
+        });
+      }
+
+      if (status === "bo'sh" || status === 'bosh') {
+        btn.textContent = 'Joyni band qilish';
+        btn.addEventListener('click', () => changeStatus('band'));
+      } else if (status === 'band') {
+        btn.textContent = 'Mijoz ketdi (tozalash uchun)';
+        btn.addEventListener('click', () => changeStatus('tozalanyapti'));
+      } else if (status === "tozalanyapti") {
+        btn.textContent = selectedPlace.type === 'table' ? "Stolni bo‘sh qilish" : "Xonani bo‘sh qilish";
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          clearPlace(selectedPlace.id, selectedPlace.type, selectedPlace.type === 'table' ? selectedPlace.number : selectedPlace.name);
+        });
+      } else {
+        // unknown status - remove button
+        return;
+      }
+      selectedPlaceInfo.appendChild(btn);
+      // update order button enablement based on new status
+      const canOrder = selectedPlace && ((selectedPlace.status||'').toLowerCase()==="bo'sh" || (selectedPlace.status||'').toLowerCase()==='band');
+      submitOrderBtn.disabled = !canOrder;
+    }
+
+    // Menyu real-time
+    db.collection("menu")
+      .where("available", "==", true)
+      .onSnapshot(snapshot => {
+        menuGrid.innerHTML = '';
+
+        if (snapshot.empty) {
+          menuGrid.innerHTML = '<p class="text-gray-500 text-center py-10 col-span-full">Menyu hali bo\'sh</p>';
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          item.id = doc.id;
+          const btn = document.createElement('button');
+          btn.className = 'bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl p-4 text-center transition shadow-sm hover:shadow';
+          btn.innerHTML = `
+            <div class="font-semibold">${item.name}</div>
+            <div class="text-sm">${item.price.toLocaleString()} so'm</div>
+          `;
+          btn.addEventListener('click', () => addToOrder(item));
+          menuGrid.appendChild(btn);
+        });
+      });
+
+    function addToOrder(item) {
+      if (!selectedPlace) {
+        showNotification("Avval stol yoki xona tanlang!", 'warning', 3000);
+        return;
+      }
+      const existing = currentOrder.find(o => o.id === item.id || o.name === item.name);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        currentOrder.push({ ...item, quantity: 1 });
+      }
+
+      renderOrder();
+    }
+
+    function renderOrder() {
+      orderList.innerHTML = '';
+      total = 0;
+
+      if (currentOrder.length === 0) {
+        orderList.innerHTML = '<p class="text-gray-500 text-center py-16">Buyurtma hali bo\'sh...</p>';
+        totalSumEl.textContent = '0 so\'m';
+        return;
+      }
+
+      currentOrder.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center py-3 border-b last:border-b-0';
+
+        const left = document.createElement('div');
+        left.className = 'flex-1';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'font-medium';
+        nameSpan.textContent = item.name;
+        const qtySpan = document.createElement('span');
+        qtySpan.className = 'text-sm text-gray-500 ml-2';
+        qtySpan.textContent = `× ${item.quantity}`;
+        left.appendChild(nameSpan);
+        left.appendChild(qtySpan);
+
+        const right = document.createElement('div');
+        right.className = 'flex items-center space-x-4';
+        const priceSpan = document.createElement('span');
+        priceSpan.className = 'font-semibold';
+        priceSpan.textContent = (item.price * item.quantity).toLocaleString() + " so'm";
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'text-red-600 hover:text-red-800';
+        removeBtn.type = 'button';
+        removeBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+        removeBtn.addEventListener('click', () => removeFromOrder(index));
+
+        right.appendChild(priceSpan);
+        right.appendChild(removeBtn);
+
+        row.appendChild(left);
+        row.appendChild(right);
+        orderList.appendChild(row);
+
+        total += item.price * item.quantity;
+      });
+
+      totalSumEl.textContent = total.toLocaleString() + ' so\'m';
+    }
+
+    window.removeFromOrder = function(index) {
+      currentOrder.splice(index, 1);
+      renderOrder();
+    };
+
+    // Buyurtmani yuborish
+    submitOrderBtn.addEventListener('click', async () => {
+      if (currentOrder.length === 0) {
+        showNotification("Buyurtmada hech narsa yo'q!", 'warning', 3000);
+        return;
+      }
+
+      if (!selectedPlace) {
+        showNotification("Stol yoki xona tanlanmagan!", 'warning', 3000);
+        return;
+      }
+
+      const placeLabel = selectedPlace.type === 'table' ? selectedPlace.number : selectedPlace.name;
+      const orderData = {
+        placeType: selectedPlace.type,
+        placeName: placeLabel,
+        placeId: selectedPlace.id,
+        items: currentOrder.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+        total: total,
+        status: "yuborildi",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        completedAt: null,
+        ofitsiant: auth.currentUser.email
+      };
+
+      try {
+        const docRef = await db.collection("orders").add(orderData);
+
+        const coll = selectedPlace.type === 'table' ? 'tables' : 'rooms';
+        await db.collection(coll).doc(selectedPlace.id).update({
+          status: "band",
+          currentOrder: true
+        });
+
+        showNotification(`Buyurtma ${selectedPlace.type === 'table' ? 'stol #' : 'xona '}${placeLabel} ga muvaffaqiyatli yuborildi!`, 'success', 4000);
+
+        console.log(`📌 New order created, starting to watch: ${docRef.id}`);
+        startWatchingOrder(docRef.id);
+
+        currentOrder = [];
+        renderOrder();
+        selectedPlace = null;
+        if (selectedPlaceUnsub) { try { selectedPlaceUnsub(); } catch(e){ } selectedPlaceUnsub = null; }
+        selectedPlaceInfo.classList.add('hidden');
+        submitOrderBtn.disabled = true;
+      } catch (err) {
+        console.error("Buyurtma yuborish xatosi:", err);
+        showNotification("Xato: " + err.message, 'error', 5000);
+      }
+    });
+
+    // Real-time buyurtma kuzatish va toast chiqarish
+    function startWatchingOrder(orderId) {
+      if (watchingOrderId === orderId) return;
+
+
+      // unsubscribe previous watcher
+      if (orderUnsubscribe) {
+        try { orderUnsubscribe(); } catch (e) { console.warn('Old unsubscribe failed', e); }
+        orderUnsubscribe = null;
+      }
+
+      watchingOrderId = orderId;
+
+      orderUnsubscribe = db.collection("orders").doc(orderId).onSnapshot(doc => {
+        if (!doc.exists) {
+          console.warn(`⚠️ Order ${orderId} does not exist in Firestore`);
+          return;
+        }
+
+        const order = doc.data();
+        
+        if (order.status === "tayyor") {
+          // debug toast (comment out after verifying)
+          // showNotification('per-order watcher triggered', 'info', 1500);
+
+          // Skip throttle for user-specific order watcher (always notify)
+          if (!notifiedOrders.has(orderId)) {
+            notifiedOrders.add(orderId);
+            notifyReady(orderId, order);
+          }
+        }
+      }, err => {
+        console.error(`❌ Error watching order ${orderId}:`, err);
+        showNotification(`Order watcher xatosi: ${err.message}`, 'error', 5000);
+      });
+    }
+
+    // notify helper used by both specific watcher and global listener
+    function notifyReady(orderId, order) {
+      // show floating toast (with fallback)
+      try {
+        const prefix = order.placeType === 'room' ? 'Xona' : 'Stol #';
+        const label = order.placeType === 'room' ? order.placeName : order.placeName;
+        Toastify({
+          text: `✓ ${prefix}${label} tayyor! Mijozga yetkazib bering.`,
+          duration: 10000,
+          close: true,
+          gravity: "top",
+          position: "center",
+          style: { background: "#10b981" },
+          stopOnFocus: true
+        }).showToast();
+      } catch (e) {
+        console.warn('Toastify failed, using fallback notification', e);
+        const prefix = order.placeType === 'room' ? 'Xona' : 'Stol #';
+        const label = order.placeType === 'room' ? order.placeName : order.placeName;
+        showNotification(`✓ ${prefix}${label} tayyor!`, 'info', 5000);
+      }
+
+      // persistent visual message with dismiss button (does NOT auto-remove)
+      const containerId = order.placeType === 'room' ? 'readyNotificationsRooms' : 'readyNotificationsTables';
+      const list = document.getElementById(containerId);
+      if (list) {
+        const item = document.createElement('div');
+        item.className = 'bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow cursor-pointer';
+        item.innerHTML = `
+          <div class="flex justify-between items-start">
+            <span><strong>${order.placeType === 'room' ? 'Xona ' : 'Stol #'}${order.placeName}</strong> tayyor!</span>
+            <button type="button" class="text-green-700 hover:text-green-900 font-bold ml-4 close-btn">✕</button>
+          </div>
+        `;
+        const dismissBtn = item.querySelector('button.close-btn');
+        if (dismissBtn) {
+          dismissBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            item.remove();
+          });
+        }
+        list.appendChild(item);
+      }
+
+      // Try to play a notification sound (respects user's enable/disable choice).
+      playNotificationSound();
+      logAction('order_ready_notified', { placeType: order.placeType, placeName: order.placeName, orderId: orderId });
+    }
+
+    // Throttle notifications to avoid spam (max 1 per second)
+    const notifiedOrders = new Set();
+    let lastNotificationTime = 0;
+    const NOTIFICATION_THROTTLE_MS = 1000; // 1 second between notifications
+    const INITIAL_LOAD_THRESHOLD = 60000; // Only notify recent orders (last 60s) on initial load
+
+    function shouldShowNotification(orderId, completedAt, isInitialLoad) {
+      // Already notified - skip
+      if (notifiedOrders.has(orderId)) {
+        return false;
+      }
+
+      // Check throttle on initial load only
+      if (isInitialLoad) {
+        const now = Date.now();
+        // Only show notifications for orders completed in last 60 seconds during initial load
+        const completedTime = completedAt && completedAt.toDate ? completedAt.toDate().getTime() : now;
+        const ageMs = now - completedTime;
+        const ageSec = Math.floor(ageMs / 1000);
+        
+        if (ageMs > INITIAL_LOAD_THRESHOLD) {
+          return false;
+        } else {
+        }
+      }
+
+      // Check throttle timing
+      const now = Date.now();
+      const timeSinceLastNotif = now - lastNotificationTime;
+      if (timeSinceLastNotif < NOTIFICATION_THROTTLE_MS) {
+        return false;
+      }
+
+      lastNotificationTime = now;
+      return true;
+    }
+
+    // global listener to catch any ready orders (in case page reload or started later)
+    let isInitialLoad = true;
+    let globalListenerActive = false;
+    db.collection("orders").where("status","==","tayyor")
+      .orderBy("completedAt", "desc")
+      .limit(50)  // Limit to last 50 ready orders
+      .onSnapshot(snap => {
+        globalListenerActive = true;
+        
+        snap.docChanges().forEach(change => {
+          const orderId = change.doc.id;
+          const order = change.doc.data();
+
+          // debug toast for listener firing (can be removed later)
+          // showNotification('listener fired', 'info', 1500);
+
+          if (shouldShowNotification(orderId, order.completedAt, isInitialLoad)) {
+            notifiedOrders.add(orderId);
+            notifyReady(orderId, order);
+          }
+        });
+
+        // Mark initial load as complete after first snapshot
+        if (isInitialLoad) {
+          isInitialLoad = false;
+        }
+      }, err => {
+        console.error('❌ WHERE listener error:', err);
+        showNotification('Listener xatosi: ' + err.message, 'error', 5000);
+        globalListenerActive = false;
+      });
+
+        // Additional safety: monitor ALL order MODIFIED changes to catch status transitions
+        // This catches orders that TRANSITION TO "tayyor" status (real-time changes)
+        let allOrdersListenerActive = false;
+        db.collection("orders").onSnapshot(snap => {
+          allOrdersListenerActive = true;
+          snap.docChanges().forEach(change => {
+            const orderId = change.doc.id;
+            const order = change.doc.data();
+            
+            // MODIFIED changes are the important ones - means status changed
+            if (change.type === 'modified' && order.status === 'tayyor') {
+              if (shouldShowNotification(orderId, order.completedAt, false)) {
+                notifiedOrders.add(orderId);
+                console.log('✨ ALL-ORDERS listener - Notifying for order:', orderId);
+                notifyReady(orderId, order);
+              } else {
+                console.log(`⏸️ ALL-ORDERS listener - Throttled/duplicate for ${orderId}`);
+              }
+            }
+          });
+        }, err => {
+          console.warn('❌ ALL-ORDERS listener warning (non-critical):', err);
+          showNotification('ALL-ORDERS listener xatosi: ' + err.message, 'warning', 5000);
+          allOrdersListenerActive = false;
+        });
+
+        // Initialize sound button state and wire up click handler
+        try {
+          updateSoundButton();
+          const enableBtn = document.getElementById('enableSoundBtn');
+          if (enableBtn) {
+            enableBtn.addEventListener('click', () => {
+              if (soundsEnabled) disableSounds();
+              else unlockAudio();
+            });
+          }
+        } catch (e) { console.warn('Sound button init failed', e); }
+
+
+    // Stolni bo‘sh qilish funksiyasi
+window.clearPlace = async function(placeId, type, label) {
+  const prefix = type === 'table' ? 'Stol' : 'Xona';
+  if (!confirm(`${prefix} ${label} ni bo‘sh qilasizmi?`)) return;
+
+  try {
+    await db.collection(type === 'table' ? 'tables' : 'rooms').doc(placeId).update({
+      status: "bo'sh",
+      currentOrder: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showNotification(`${prefix} ${label} bo'sh holatiga o'tkazildi!`, 'success', 3000);
+    console.log(`${prefix} ${label} bo'sh qilindi`);
+    // if this was the currently selected place, update UI
+    if (selectedPlace && selectedPlace.id === placeId) {
+      selectedPlace.status = "bo'sh";
+      selectedPlaceStatus.textContent = selectedPlace.status;
+      updateSelectedPlaceControls();
+    }
+  } catch (err) {
+    console.error(`${prefix} tozalashda xato:`, err);
+    showNotification(`Xato: ${err.message}`, 'error', 5000);
+  }
+};
+  </script>
+
+</body>
+</html>

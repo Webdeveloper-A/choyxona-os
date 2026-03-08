@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
+  <title>Kassa - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="assets/js/helpers.js"></script>
+  <!-- Toast bildirishnoma uchun -->
+  <link rel="stylesheet" href="assets/css/toastify.min.css">
+  <script src="assets/js/toastify.min.js"></script>
+  <!-- jsPDF kutubxonasi (PDF chiqarish uchun) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-purple-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight">Kassa</h1>
+      <div class="flex items-center space-x-6">
+        <span id="userEmail" class="text-base font-medium"></span>
+        <button id="logoutBtn" class="bg-red-700 hover:bg-red-800 px-5 py-2 rounded-lg font-medium transition">
+          Chiqish
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Asosiy kontent -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Chap panel: tayyor buyurtmalar ro'yxati (stollar va xonalar) -->
+      <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Tayyor buyurtmalar</h2>
+        <h3 class="text-lg font-semibold mt-2">Stollar</h3>
+        <div id="readyTables" class="space-y-4 max-h-[35vh] overflow-y-auto">
+          <p class="text-gray-500 text-center py-12">Buyurtmalar yuklanmoqda...</p>
+        </div>
+        <h3 class="text-lg font-semibold mt-6">Xonalar</h3>
+        <div id="readyRooms" class="space-y-4 max-h-[35vh] overflow-y-auto"></div>
+      </div>
+
+      <!-- O'ng panel: tanlangan buyurtma tafsilotlari + to'lov -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Buyurtma tafsilotlari</h2>
+
+        <div id="noOrderSelected" class="text-center py-16 text-gray-500 text-xl">
+          Yuqoridan tayyor buyurtmani tanlang...
+        </div>
+
+        <div id="orderDetails" class="hidden">
+          <div class="flex justify-between items-start mb-8">
+            <div>
+              <h3 id="orderTitle" class="text-3xl font-bold text-gray-900"></h3>
+              <p id="orderTime" class="text-base text-gray-600 mt-2"></p>
+            </div>
+            <div class="text-right">
+              <p class="text-4xl font-bold text-purple-700" id="orderTotal"></p>
+              <p class="text-base text-gray-500">jami</p>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-6 mb-8">
+            <h4 class="text-xl font-medium text-gray-800 mb-4">Taomlar</h4>
+            <ul id="orderItems" class="space-y-4"></ul>
+          </div>
+
+          <!-- To'lov usullari -->
+          <div class="mb-8">
+            <h4 class="text-xl font-medium text-gray-800 mb-4">To'lov usuli</h4>
+            <div class="grid grid-cols-3 gap-6">
+              <button data-payment="naqd" class="payment-btn bg-green-100 hover:bg-green-200 border border-green-300 rounded-xl p-5 text-center font-semibold text-green-800 transition shadow-sm">
+                Naqd
+              </button>
+              <button data-payment="karta" class="payment-btn bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-xl p-5 text-center font-semibold text-blue-800 transition shadow-sm">
+                Karta
+              </button>
+              <button data-payment="terminal" class="payment-btn bg-indigo-100 hover:bg-indigo-200 border border-indigo-300 rounded-xl p-5 text-center font-semibold text-indigo-800 transition shadow-sm">
+                Terminal
+              </button>
+            </div>
+          </div>
+
+          <button id="completeOrderBtn" disabled class="w-full bg-purple-600 hover:bg-purple-700 text-white py-5 rounded-xl font-bold text-xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+            To'lov qabul qilindi – Buyurtmani yopish va Chek chiqarish
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(window.firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Foydalanuvchi ma'lumotlari + rol tekshiruvi
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      let role = "ofitsiant";
+
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        role = data.role || "ofitsiant";
+
+        const displayName = data.name || user.email.split('@')[0];
+        document.getElementById('userEmail').innerHTML = `
+          ${displayName} <span class="text-xs bg-white/20 px-3 py-1 rounded-full ml-3">${role}</span>
+        `;
+      } else {
+        document.getElementById('userEmail').textContent = user.email + " (rol topilmadi)";
+      }
+
+      if (role !== "kassa") {
+        alert("Bu sahifaga faqat kassa xodimi kira oladi!");
+        if (role === "admin") window.location.href = 'dashboard-admin.html';
+        else if (role === "ofitsiant") window.location.href = 'dashboard-ofitsiant.html';
+        else if (role === "oshxona") window.location.href = 'kitchen.html';
+        return;
+      }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'login.html');
+    });
+
+    // Tayyor buyurtmalar ro'yxati (real-time)
+    const readyTables = document.getElementById('readyTables');
+    const readyRooms = document.getElementById('readyRooms');
+    let selectedOrderId = null;
+    let selectedPayment = null;
+
+    db.collection("orders")
+      .where("status", "==", "tayyor")
+      .orderBy("completedAt", "desc")
+      .onSnapshot(snapshot => {
+        readyTables.innerHTML = '';
+        readyRooms.innerHTML = '';
+        if (snapshot.empty) {
+          readyTables.innerHTML = '<p class="text-gray-500 text-center py-12">Hozircha tayyor buyurtma yo\'q...</p>';
+          readyRooms.innerHTML = '<p class="text-gray-500 text-center py-12">Hozircha tayyor buyurtma yo\'q...</p>';
+          document.getElementById('noOrderSelected').classList.remove('hidden');
+          document.getElementById('orderDetails').classList.add('hidden');
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const container = order.placeType === 'room' ? readyRooms : readyTables;
+          // build prefix including order number for customer orders
+          let prefix;
+          if (order.placeType === 'room') prefix = 'Xona ';
+          else if (order.placeType === 'customer') prefix = order.orderNumber ? `Mijoz #${order.orderNumber} ` : 'Mijoz ';
+          else prefix = 'Stol #';
+          const card = document.createElement('div');
+          card.className = `p-6 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+            selectedOrderId === doc.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white'
+          }`;
+
+          card.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-bold text-xl">${prefix}${order.placeName}</p>
+                <p class="text-base text-gray-600 mt-1">${order.total.toLocaleString('uz-UZ')} so'm</p>
+                ${order.placeType==='customer' ? `<p class="text-sm text-gray-500">${order.customerName || ''} ${order.phone ? '('+order.phone+')' : ''}</p>` : ''}
+              </div>
+              <p class="text-sm text-gray-500">${order.completedAt?.toDate ? order.completedAt.toDate().toLocaleTimeString('uz-UZ') : 'vaqt'}</p>
+            </div>
+          `;
+
+          card.addEventListener('click', () => showOrderDetails(doc.id, order));
+          container.appendChild(card);
+        });
+      });
+
+    // Tanlangan buyurtmani ko'rsatish
+    function showOrderDetails(orderId, order) {
+      selectedOrderId = orderId;
+      selectedPayment = null;
+
+      document.getElementById('noOrderSelected').classList.add('hidden');
+      document.getElementById('orderDetails').classList.remove('hidden');
+
+      // show header with order number or place
+      let prefix;
+      if (order.placeType === 'room') prefix = 'Xona ';
+      else if (order.placeType === 'customer') prefix = order.orderNumber ? `Mijoz #${order.orderNumber} ` : 'Mijoz ';
+      else prefix = 'Stol #';
+      document.getElementById('orderTitle').textContent = `${prefix}${order.placeName} buyurtmasi`;
+      document.getElementById('orderTime').textContent = `Tayyor bo'lgan vaqt: ${order.completedAt?.toDate ? order.completedAt.toDate().toLocaleString('uz-UZ') : 'noma\'lum'}`;
+      document.getElementById('orderTotal').textContent = `${order.total.toLocaleString('uz-UZ')} so'm`;
+      // if customer order, show name/phone below title
+      if (order.placeType === 'customer') {
+        const infoDiv = document.createElement('p');
+        infoDiv.className = 'text-sm text-gray-600 mt-1';
+        infoDiv.textContent = `${order.customerName || ''}${order.phone ? ' ('+order.phone+')' : ''}`;
+        document.getElementById('orderTitle').insertAdjacentElement('afterend', infoDiv);
+      }
+
+      const itemsList = document.getElementById('orderItems');
+      itemsList.innerHTML = '';
+      order.items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center text-gray-800 py-3 border-b last:border-b-0';
+        li.innerHTML = `<span class="font-medium">${item.name} × ${item.quantity}</span><span class="font-semibold">${(item.price * item.quantity).toLocaleString('uz-UZ')} so'm</span>`;
+        itemsList.appendChild(li);
+      });
+
+      document.getElementById('completeOrderBtn').disabled = true;
+      document.querySelectorAll('.payment-btn').forEach(btn => {
+        btn.classList.remove('bg-opacity-50', 'ring-2', 'ring-purple-500');
+      });
+    }
+
+    // To'lov usulini tanlash
+    window.selectPayment = function(method) {
+      selectedPayment = method;
+      document.querySelectorAll('.payment-btn').forEach(btn => {
+        btn.classList.remove('bg-opacity-50', 'ring-2', 'ring-purple-500');
+        if (btn.textContent.trim().toLowerCase() === method) {
+          btn.classList.add('bg-opacity-50', 'ring-2', 'ring-purple-500');
+        }
+      });
+      document.getElementById('completeOrderBtn').disabled = false;
+    };
+
+    // Attach listeners to payment buttons (avoid inline onclick)
+    document.querySelectorAll('.payment-btn').forEach(btn => {
+      const method = btn.dataset.payment || btn.textContent.trim().toLowerCase();
+      btn.addEventListener('click', () => window.selectPayment(method));
+    });
+
+    // Buyurtmani to'langan deb belgilash va PDF chek chiqarish
+    document.getElementById('completeOrderBtn').addEventListener('click', async () => {
+      if (!selectedOrderId || !selectedPayment) {
+        alert("To'lov usulini tanlang!");
+        return;
+      }
+
+      if (!confirm("To'lov qabul qilindi deb belgilaysizmi?")) return;
+
+      try {
+        // 1. Buyurtma statusini yangilash
+        await db.collection("orders").doc(selectedOrderId).update({
+          status: "to'langan",
+          paymentMethod: selectedPayment,
+          paidAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Joyni "tozalanyapti" holatiga o'tkazish (faqat stol/xona buyurtmalari uchun)
+        const orderSnap = await db.collection("orders").doc(selectedOrderId).get();
+        const { placeType, placeName, placeId } = orderSnap.data();
+
+        if (placeType && placeType !== 'customer') {
+          if (!placeName || !placeId) {
+            throw new Error("Buyurtmada stol/xona ma'lumotlari topilmadi");
+          }
+
+          const collName = placeType === 'room' ? 'rooms' : 'tables';
+          const placeRef = db.collection(collName).doc(placeId);
+          const placeSnap = await placeRef.get();
+
+          if (!placeSnap.exists) {
+            console.warn(`${collName} ${placeId} topilmadi. Yangi element yaratilmoqda...`);
+            await placeRef.set({
+              [placeType === 'room' ? 'name' : 'number']: placeName,
+              status: "tozalanyapti",
+              capacity: 4,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            await placeRef.update({
+              status: "tozalanyapti",
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        } // else customer orders have no physical place to update
+
+        // 3. PDF chek generatsiya qilish
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(18);
+        doc.text("Choyxona OS - Chek", 105, 15, { align: "center" });
+
+        doc.setFontSize(12);
+        // include order number and, if customer order, customer name/phone
+        if (orderSnap.data().placeType === 'customer' && orderSnap.data().orderNumber) {
+          doc.text(`Buyurtma №: ${orderSnap.data().orderNumber}`, 20, 30);
+          if (orderSnap.data().customerName) {
+            doc.text(`Mijoz: ${orderSnap.data().customerName}${orderSnap.data().phone ? ' ('+orderSnap.data().phone+')' : ''}`, 20, 40);
+          }
+          doc.text(`To'lov vaqti: ${new Date().toLocaleString('uz-UZ')}`, 20, 50);
+        } else {
+          doc.text(`${placeType === 'room' ? "Xona" : "Stol"}: ${placeName}`, 20, 30);
+          doc.text(`To'lov vaqti: ${new Date().toLocaleString('uz-UZ')}`, 20, 40);
+        }
+        doc.text(`To'lov usuli: ${selectedPayment.toUpperCase()}`, 20, orderSnap.data().placeType === 'customer' ? 60 : 50);
+
+        doc.line(20, 55, 190, 55);
+
+        let y = 65;
+        doc.text("Taomlar:", 20, y);
+        y += 10;
+
+        orderSnap.data().items.forEach(item => {
+          doc.text(`${item.name} x ${item.quantity}`, 30, y);
+          doc.text(`${(item.price * item.quantity).toLocaleString('uz-UZ')} so'm`, 150, y, { align: "right" });
+          y += 8;
+        });
+
+        doc.line(20, y, 190, y);
+        y += 10;
+
+        doc.setFontSize(14);
+        doc.text("JAMI:", 20, y);
+        doc.text(`${orderSnap.data().total.toLocaleString('uz-UZ')} so'm`, 190, y, { align: "right" });
+
+        doc.setFontSize(10);
+        y += 15;
+        doc.text("Rahmat! Yana kutib qolamiz!", 105, y, { align: "center" });
+
+        // save with place name/type for clarity
+        const fileLabel = `${placeType === 'room' ? 'Xona' : 'Stol'}_${placeName}`;
+        doc.save(`Chek_${fileLabel}_${new Date().toISOString().slice(0,10)}.pdf`);
+
+        alert(`To'lov qabul qilindi! ${placeType === 'room' ? 'Xona' : 'Stol'} tozalashga yuborildi.\nChek PDF saqlandi.`);
+
+        // Ekranni tozalash
+        selectedOrderId = null;
+        selectedPayment = null;
+        document.getElementById('orderDetails').classList.add('hidden');
+        document.getElementById('noOrderSelected').classList.remove('hidden');
+        document.getElementById('completeOrderBtn').disabled = true;
+      } catch (err) {
+        console.error("To'lov jarayonida xato:", err);
+        alert("Xato yuz berdi: " + err.message);
+      }
+    });
+  </script>
+
+</body>
+</html>

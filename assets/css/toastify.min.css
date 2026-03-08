@@ -1,0 +1,96 @@
+/**
+ * Toastify CSS 1.12.0
+ * Minimal local copy to replace CDN
+ */
+
+#toastify-container {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.toastify {
+  padding: 12px 20px;
+  color: white;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: sans-serif;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out;
+  margin: 10px 0;
+}
+
+.toastify-top {
+  top: 0;
+}
+
+.toastify-bottom {
+  bottom: 0;
+}
+
+.toastify-left {
+  left: 0;
+  margin-left: 15px;
+}
+
+.toastify-right {
+  right: 0;
+  margin-right: 15px;
+}
+
+.toastify-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.toastify.on {
+  opacity: 1;
+}
+
+.toastify img {
+  display: inline-block;
+  height: 20px;
+  margin-right: 10px;
+  width: 20px;
+}
+
+.toastify > span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  margin-left: 10px;
+  outline: none;
+  padding: 0;
+}
+
+@media only screen and (max-width: 360px) {
+  .toastify-left,
+  .toastify-right {
+    margin-left: 5px;
+    margin-right: 5px;
+  }
+
+  .toastify {
+    margin: 5px 0;
+    padding: 8px 12px;
+  }
+
+  .toastify > span {
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+}

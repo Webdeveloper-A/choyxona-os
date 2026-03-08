@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
+  <title>Hisobotlar - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="assets/js/helpers.js"></script>
+  <!-- Chart.js kutubxonasi (grafiklar uchun) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+  <!-- Header -->
+  <header class="bg-indigo-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight">Hisobotlar</h1>
+      <div class="flex items-center space-x-6">
+        <span id="userEmail" class="text-base font-medium"></span>
+        <button id="logoutBtn" class="bg-red-700 hover:bg-red-800 px-5 py-2 rounded-lg font-medium transition">
+          Chiqish
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Asosiy kontent -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Umumiy statistika -->
+      <div class="lg:col-span-3 bg-white rounded-2xl shadow-xl p-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6">Bugungi umumiy hisobot</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div class="bg-indigo-50 p-6 rounded-xl text-center border border-indigo-200">
+            <p class="text-lg text-gray-700">Umumiy savdo</p>
+            <p id="todayTotal" class="text-4xl font-bold text-indigo-700 mt-2">0 so'm</p>
+          </div>
+          <div class="bg-green-50 p-6 rounded-xl text-center border border-green-200">
+            <p class="text-lg text-gray-700">Buyurtmalar soni</p>
+            <p id="todayOrders" class="text-4xl font-bold text-green-700 mt-2">0 ta</p>
+          </div>
+          <div class="bg-yellow-50 p-6 rounded-xl text-center border border-yellow-200">
+            <p class="text-lg text-gray-700">O'rtacha chek</p>
+            <p id="avgCheck" class="text-4xl font-bold text-yellow-700 mt-2">0 so'm</p>
+          </div>
+          <div class="bg-pink-50 p-6 rounded-xl text-center border border-pink-200">
+            <p class="text-lg text-gray-700">Eng band joy</p>
+            <p id="topPlace" class="text-4xl font-bold text-pink-700 mt-2">-</p>
+          </div>
+        </div>
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white p-4 rounded-xl text-center shadow-inner">
+            <p class="text-sm text-gray-600">Stollar savdo</p>
+            <p id="tablesSales" class="text-lg font-semibold text-gray-800 mt-2">0 so'm</p>
+            <p id="tablesCount" class="text-sm text-gray-600 mt-1">0 ta</p>
+          </div>
+          <div class="bg-white p-4 rounded-xl text-center shadow-inner">
+            <p class="text-sm text-gray-600">Xonalar savdo</p>
+            <p id="roomsSales" class="text-lg font-semibold text-gray-800 mt-2">0 so'm</p>
+            <p id="roomsCount" class="text-sm text-gray-600 mt-1">0 ta</p>
+          </div>
+          <div class="bg-white p-4 rounded-xl text-center shadow-inner">
+            <p class="text-sm text-gray-600">Mijoz buyurtmalari savdo</p>
+            <p id="customerSales" class="text-lg font-semibold text-gray-800 mt-2">0 so'm</p>
+            <p id="customerCount" class="text-sm text-gray-600 mt-1">0 ta</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Eng ko‘p sotilgan taomlar -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl p-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Eng ko‘p sotilgan taomlar (bugun)</h2>
+        <div id="topItems" class="space-y-4">
+          <p class="text-gray-500 text-center py-10">Ma'lumotlar yuklanmoqda...</p>
+        </div>
+      </div>
+
+      <!-- Savdo grafikasi -->
+      <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl p-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Soatlik savdo</h2>
+        <canvas id="salesChart" height="200"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(window.firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Foydalanuvchi tekshiruvi (faqat admin kira oladi)
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      let role = "ofitsiant";
+
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        role = data.role || "ofitsiant";
+        const displayName = data.name || user.email.split('@')[0] || user.email;
+        document.getElementById('userEmail').innerHTML = `
+          ${displayName}
+          <span class="text-xs bg-white/20 px-3 py-1 rounded-full ml-3">${role}</span>
+        `;
+      }
+
+      if (role !== "admin") {
+        alert("Bu sahifaga faqat admin kira oladi!");
+        if (role === "ofitsiant") window.location.href = 'dashboard-ofitsiant.html';
+        else if (role === "kassa") window.location.href = 'cashier.html';
+        else if (role === "oshxona") window.location.href = 'kitchen.html';
+        else window.location.href = 'login.html';
+        return;
+      }
+
+      loadReports();
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'login.html');
+    });
+
+    // Hisobotlarni yuklash
+    async function loadReports() {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      try {
+        // Bugungi to'langan buyurtmalar
+        const todayOrdersSnap = await db.collection("orders")
+          .where("paidAt", ">=", firebase.firestore.Timestamp.fromDate(todayStart))
+          .where("paidAt", "<=", firebase.firestore.Timestamp.fromDate(todayEnd))
+          .where("status", "==", "to'langan")
+          .get();
+
+        let totalSales = 0;
+        let orderCount = todayOrdersSnap.size;
+        const itemSales = {}; // taom bo'yicha statistika
+        const placeCounts = {}; // joylar bo'yicha buyurtma soni
+        const hourlySales = Array(24).fill(0); // soatlik savdo
+        let tablesSales = 0, tablesCount = 0;
+        let roomsSales = 0, roomsCount = 0;
+        let customerSales = 0, customerCount = 0;
+
+        todayOrdersSnap.forEach(doc => {
+          const data = doc.data();
+          totalSales += data.total || 0;
+
+          // Taomlar bo'yicha
+          (data.items || []).forEach(item => {
+            const name = item.name;
+            itemSales[name] = (itemSales[name] || 0) + (item.quantity || 1);
+          });
+
+          // joylar bo'yicha umumiy
+          const placeLabel = data.placeType && data.placeName ?
+            `${data.placeType==='table' ? 'Stol' : 'Xona'} ${data.placeName}` : 'noma\'lum';
+          placeCounts[placeLabel] = (placeCounts[placeLabel] || 0) + 1;
+
+          // joylar bo'yicha turlarga ajratish
+          if (data.placeType === 'table') {
+            tablesSales += data.total || 0;
+            tablesCount += 1;
+          } else if (data.placeType === 'room') {
+            roomsSales += data.total || 0;
+            roomsCount += 1;
+          } else if (data.placeType === 'customer') {
+            customerSales += data.total || 0;
+            customerCount += 1;
+          }
+
+          // Soatlik savdo
+          const hour = data.paidAt?.toDate ? data.paidAt.toDate().getHours() : 0;
+          hourlySales[hour] += data.total || 0;
+        });
+
+        // Umumiy statistika
+        document.getElementById('todayTotal').textContent = totalSales.toLocaleString('uz-UZ') + ' so\'m';
+        document.getElementById('todayOrders').textContent = orderCount + ' ta';
+        document.getElementById('avgCheck').textContent = orderCount > 0 ? (totalSales / orderCount).toLocaleString('uz-UZ') + ' so\'m' : '0 so\'m';
+
+        // Eng band joy
+        let bestPlace = {name: "-", qty: 0};
+        for (const k in placeCounts) {
+          if (placeCounts[k] > bestPlace.qty) {
+            bestPlace = {name: k, qty: placeCounts[k]};
+          }
+        }
+        document.getElementById('topPlace').textContent = bestPlace.qty > 0 ? `${bestPlace.name} (${bestPlace.qty})` : bestPlace.name;
+
+        // Eng ko‘p sotilgan taomlar
+        const topItemsDiv = document.getElementById('topItems');
+        topItemsDiv.innerHTML = '';
+        const sortedItems = Object.entries(itemSales).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+        if (sortedItems.length === 0) {
+          topItemsDiv.innerHTML = '<p class="text-gray-500 text-center py-10">Bugun taom sotilmagan</p>';
+        } else {
+          sortedItems.forEach(([name, count]) => {
+            const item = document.createElement('div');
+            item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded-lg';
+            item.innerHTML = `
+              <span class="font-medium">${name}</span>
+              <span class="text-green-700 font-bold">${count} ta</span>
+            `;
+            topItemsDiv.appendChild(item);
+          });
+        }
+
+        // update place-specific display
+        document.getElementById('tablesSales').textContent = tablesSales.toLocaleString('uz-UZ') + ' so\'m';
+        document.getElementById('tablesCount').textContent = tablesCount + ' ta';
+        document.getElementById('roomsSales').textContent = roomsSales.toLocaleString('uz-UZ') + ' so\'m';
+        document.getElementById('roomsCount').textContent = roomsCount + ' ta';
+        document.getElementById('customerSales').textContent = customerSales.toLocaleString('uz-UZ') + ' so\'m';
+        document.getElementById('customerCount').textContent = customerCount + ' ta';
+
+        // Grafik (Chart.js)
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        // destroy existing chart if any to avoid duplicates
+        if (window.salesChartInstance) {
+          window.salesChartInstance.destroy();
+        }
+        window.salesChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            datasets: [{
+              label: 'Soatlik savdo (so\'m)',
+              data: hourlySales,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.2)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error("Hisobot yuklashda xato:", err);
+        alert("Hisobotlarni yuklab bo'lmadi: " + err.message);
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
+  <title>Admin Dashboard - Choyxona OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="assets/js/helpers.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-indigo-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight">Admin Paneli</h1>
+      <div class="flex items-center space-x-6">
+        <span id="userEmail" class="text-base font-medium"></span>
+        <button id="logoutBtn" class="bg-red-700 hover:bg-red-800 px-5 py-2 rounded-lg font-medium transition">
+          Chiqish
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Asosiy kontent -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Chap panel – navigatsiya -->
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+          <h2 class="text-xl font-bold text-gray-800 mb-6">Navigatsiya</h2>
+          <ul class="space-y-4">
+            <li><a href="#menu-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Menyu boshqarish</a></li>
+            <li><a href="#tables-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Stollar boshqaruvi</a></li>
+            <li><a href="#rooms-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Xonalar boshqaruvi</a></li>
+            <li><a href="#staff-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Xodimlar</a></li>
+            <li><a href="#reports-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Hisobotlar</a></li>
+            <li><a href="#applications-section" class="text-indigo-600 hover:text-indigo-800 font-medium block py-2 px-4 rounded-lg hover:bg-indigo-50 transition">Arizalar</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- O'ng panel – asosiy mazmun -->
+      <div class="lg:col-span-2 space-y-10">
+
+        <!-- Menyu boshqarish -->
+        <section id="menu-section" class="bg-white rounded-2xl shadow-xl p-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Menyu boshqarish</h2>
+            <button id="addMenuBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg font-medium transition shadow">
+              + Yangi taom qo'shish
+            </button>
+          </div>
+
+          <div id="menuList" class="space-y-4">
+            <p class="text-gray-500 text-center py-12">Menyu yuklanmoqda...</p>
+          </div>
+        </section>
+
+        <!-- Stollar boshqaruvi -->
+        <section id="tables-section" class="bg-white rounded-2xl shadow-xl p-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Stollar boshqaruvi</h2>
+            <button id="addTableBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-medium transition shadow">
+              + Yangi stol qo'shish
+            </button>
+          </div>
+
+          <div id="tablesList" class="space-y-3">
+            <p class="text-gray-500 text-center py-12">Stollar yuklanmoqda...</p>
+          </div>
+        </section>
+
+        <!-- Xonalar boshqaruvi -->
+        <section id="rooms-section" class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Xonalar</h2>
+            <button id="addRoomBtn" class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-medium transition shadow">
+              + Yangi xona qo'shish
+            </button>
+          </div>
+          <div id="roomsList" class="space-y-3">
+            <p class="text-gray-500 text-center py-12">Xonalar yuklanmoqda...</p>
+          </div>
+        </section>
+
+        <!-- Xodimlar ro'yxati -->
+        <section id="staff-section" class="bg-white rounded-2xl shadow-xl p-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Xodimlar ro'yxati</h2>
+            <button id="addStaffBtn" class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg font-medium transition shadow">
+              + Yangi xodim qo'shish
+            </button>
+          </div>
+
+          <div id="staffList" class="space-y-3">
+            <p class="text-gray-500 text-center py-12">Xodimlar yuklanmoqda...</p>
+          </div>
+        </section>
+
+        <!-- Hisobotlar (hozircha placeholder) -->
+        <section id="reports-section" class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">Hisobotlar</h2>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-blue-50 p-6 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Bugungi savdo</p>
+              <p id="salesToday" class="text-4xl font-bold text-blue-700 mt-2">0 so'm</p>
+            </div>
+            <div class="bg-green-50 p-6 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Eng ko'p sotilgan</p>
+              <p id="topItem" class="text-2xl font-semibold text-green-700 mt-2">Hali ma'lumot yo'q</p>
+            </div>
+            <div class="bg-purple-50 p-6 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Buyurtmalar soni</p>
+              <p id="ordersCount" class="text-4xl font-bold text-purple-700 mt-2">0 ta</p>
+            </div>
+            <div class="bg-yellow-50 p-6 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Eng band joy</p>
+              <p id="topPlace" class="text-2xl font-semibold text-yellow-700 mt-2">Hozircha yo'q</p>
+            </div>
+          </div>
+          <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-4 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Stollar savdo</p>
+              <p id="tablesSales" class="text-lg font-semibold text-gray-800 mt-2">0 so'm</p>
+              <p id="tablesCount" class="text-sm text-gray-600 mt-1">0 ta</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl text-center shadow-inner">
+              <p class="text-sm text-gray-600">Xonalar savdo</p>
+              <p id="roomsSales" class="text-lg font-semibold text-gray-800 mt-2">0 so'm</p>
+              <p id="roomsCount" class="text-sm text-gray-600 mt-1">0 ta</p>
+            </div>
+          </div>
+          <div class="mt-6 text-center">
+            <button id="clearReportsBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition">
+              Hisobotni tozalash
+            </button>
+          </div>
+        </section>
+
+        <!-- Arizalar bo'limi -->
+        <section id="applications-section" class="bg-white rounded-2xl shadow-xl p-6">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">Ishga arizalar</h2>
+          <div id="applicationsList" class="space-y-4">
+            <!-- Arizalar shu yerga yuklanadi -->
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal – yangi taom qo'shish -->
+  <div id="addMenuModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
+      <h3 class="text-2xl font-bold mb-6 text-gray-800">Yangi taom qo'shish</h3>
+      <form id="addMenuForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Taom nomi</label>
+          <input type="text" id="menuName" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Narxi (so'm)</label>
+          <input type="number" id="menuPrice" required min="0" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Kategoriya</label>
+          <select id="menuCategory" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="asosiy">Asosiy taomlar</option>
+            <option value="go'sht">Go'shtli</option>
+            <option value="suyuq">Suyuq ovqatlar</option>
+            <option value="salat">Salatlar</option>
+            <option value="ichimlik">Ichimliklar</option>
+            <option value="desert">Shirinliklar</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-4 mt-8">
+          <button type="button" id="cancelAddBtn" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+            Bekor qilish
+          </button>
+          <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+            Qo'shish
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal – taomni tahrirlash -->
+  <div id="editMenuModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
+      <h3 class="text-2xl font-bold mb-6 text-gray-800">Taomni tahrirlash</h3>
+      <form id="editMenuForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Taom nomi</label>
+          <input type="text" id="editMenuName" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Narxi (so'm)</label>
+          <input type="number" id="editMenuPrice" required min="0" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Kategoriya</label>
+          <select id="editMenuCategory" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="asosiy">Asosiy taomlar</option>
+            <option value="go'sht">Go'shtli</option>
+            <option value="suyuq">Suyuq ovqatlar</option>
+            <option value="salat">Salatlar</option>
+            <option value="ichimlik">Ichimliklar</option>
+            <option value="desert">Shirinliklar</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Holati</label>
+          <select id="editMenuAvailable" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="true">Mavjud</option>
+            <option value="false">Tugagan</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-4 mt-8">
+          <button type="button" id="cancelEditBtn" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+            Bekor qilish
+          </button>
+          <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            Saqlash
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(window.firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Common category list; used for both add and edit forms
+    const MENU_CATEGORIES = [
+      "asosiy",
+      "go'sht",
+      "suyuq",
+      "salat",
+      "ichimlik",
+      "desert"
+    ];
+
+    function populateCategorySelect(selectElement, selectedValue) {
+      // rebuild options each time to avoid stale entries
+      selectElement.innerHTML = '';
+      MENU_CATEGORIES.forEach(cat => {
+        const o = document.createElement('option');
+        o.value = cat;
+        o.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+        selectElement.appendChild(o);
+      });
+      if (selectedValue) {
+        // if the value isn't in predefined list, append it
+        if (!MENU_CATEGORIES.includes(selectedValue)) {
+          const extra = document.createElement('option');
+          extra.value = selectedValue;
+          extra.textContent = selectedValue;
+          selectElement.appendChild(extra);
+        }
+        selectElement.value = selectedValue;
+      }
+    }
+
+    // initial population for add form
+    document.addEventListener('DOMContentLoaded', () => {
+      populateCategorySelect(document.getElementById('menuCategory'));
+    });
+
+    // Foydalanuvchi ma'lumotlari + rol tekshiruvi
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      let role = "ofitsiant";
+
+      if (userDoc.exists) {
+        const data = userDoc.data();
+        role = data.role || "ofitsiant";
+
+        const displayName = data.name || user.email.split('@')[0];
+        document.getElementById('userEmail').innerHTML = `
+          ${displayName} <span class="text-xs bg-white/20 px-3 py-1 rounded-full ml-3">${role}</span>
+        `;
+      } else {
+        document.getElementById('userEmail').textContent = user.email + " (rol topilmadi)";
+      }
+
+      if (role !== "admin") {
+        alert("Bu sahifaga faqat admin kira oladi!");
+        if (role === "ofitsiant") window.location.href = 'dashboard-ofitsiant.html';
+        else if (role === "kassa") window.location.href = 'cashier.html';
+        else if (role === "oshxona") window.location.href = 'kitchen.html';
+        return;
+      }
+
+      // Admin bo'lsa barcha bo'limlarni yuklash
+      loadStaff();
+      loadTables();
+      loadRooms();
+      loadMenu();  // Menyu real-time yuklanadi
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'login.html');
+    });
+
+    // Rol rangi
+    function getRoleColor(role) {
+      if (!role) return "bg-gray-100 text-gray-700";
+      switch (role.toLowerCase()) {
+        case "admin": return "bg-red-100 text-red-800";
+        case "ofitsiant": return "bg-blue-100 text-blue-800";
+        case "kassa": return "bg-purple-100 text-purple-800";
+        case "oshxona": return "bg-orange-100 text-orange-800";
+        default: return "bg-gray-100 text-gray-700";
+      }
+    }
+
+    function getTableStatusColor(status) {
+      if (!status) return "bg-gray-100 text-gray-700";
+      switch (status.toLowerCase()) {
+        case "bo'sh": return "bg-green-100 text-green-800";
+        case "band": return "bg-red-100 text-red-800";
+        case "tozalanyapti": return "bg-yellow-100 text-yellow-800";
+        default: return "bg-gray-100 text-gray-700";
+      }
+    }
+    // rooms use same colors as tables
+    const getRoomStatusColor = getTableStatusColor;
+
+    // Xodimlar ro'yxati
+    async function loadStaff() {
+      const staffList = document.getElementById('staffList');
+      staffList.innerHTML = '<p class="text-gray-500 text-center py-12">Xodimlar yuklanmoqda...</p>';
+
+      try {
+        const snapshot = await db.collection("users").get();
+
+        if (snapshot.empty) {
+          staffList.innerHTML = '<p class="text-gray-600 text-center py-12">Hali xodim qo`shilmagan</p>';
+          return;
+        }
+
+        staffList.innerHTML = '';
+        snapshot.forEach(doc => {
+          const user = doc.data();
+          const div = document.createElement('div');
+          div.className = "flex flex-col sm:flex-row sm:items-center justify-between bg-gray-50 p-5 rounded-xl border border-gray-200 hover:border-indigo-300 transition gap-4";
+
+          const left = document.createElement('div');
+          left.className = 'flex-1';
+          const nameP = document.createElement('p');
+          nameP.className = 'font-semibold text-lg';
+          nameP.textContent = user.name || 'Ism kiritilmagan';
+          const emailP = document.createElement('p');
+          emailP.className = 'text-sm text-gray-600';
+          emailP.textContent = user.email || "Email yo'q";
+          left.appendChild(nameP);
+          left.appendChild(emailP);
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-4 flex-wrap';
+
+          const roleSpan = document.createElement('span');
+          roleSpan.className = 'px-4 py-1.5 rounded-full text-sm font-medium capitalize ' + getRoleColor(user.role);
+          roleSpan.textContent = user.role || "rol yo'q";
+
+          const editBtn = document.createElement('button');
+          editBtn.className = 'text-indigo-600 hover:text-indigo-800 font-medium text-sm underline';
+          editBtn.type = 'button';
+          editBtn.textContent = "Rol o'zgartirish";
+          editBtn.addEventListener('click', () => editStaffRole(doc.id, user.role || ''));
+
+          right.appendChild(roleSpan);
+          right.appendChild(editBtn);
+
+          div.appendChild(left);
+          div.appendChild(right);
+          staffList.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Xodimlarni yuklashda xato:", err);
+        staffList.innerHTML = '<p class="text-red-600 text-center py-12">Xato: xodimlarni yuklab bo\'lmadi</p>';
+      }
+    }
+
+    // Rol o'zgartirish
+    window.editStaffRole = async function(uid, currentRole) {
+      const newRole = prompt(`Hozirgi rol: ${currentRole || "yo'q"}\nYangi rol (admin, ofitsiant, kassa, oshxona):`, currentRole || "");
+      if (!newRole || newRole === currentRole) return;
+
+      const valid = ["admin", "ofitsiant", "kassa", "oshxona"];
+      if (!valid.includes(newRole.toLowerCase())) return alert("Noto'g'ri rol!");
+
+      if (!confirm(`Rolni "${newRole}" ga o'zgartirasizmi?`)) return;
+
+      try {
+        await db.collection("users").doc(uid).update({
+          role: newRole.toLowerCase(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert(`Muvaffaqiyat! ${newRole} roli berildi.`);
+        loadStaff();
+      } catch (err) {
+        alert("Xato: " + err.message);
+      }
+    };
+
+    // Yangi xodim (hozircha alert)
+    window.addNewStaff = function() {
+      alert("Yangi xodim qo'shish hali to'liq emas.\n\nQadamlar:\n1. Firebase Authentication → Add user\n2. Firestore users kolleksiyasiga document qo'shing:\n   ID = UID\n   email, name, role maydonlari");
+    };
+
+    // Wire up add staff button (avoid inline onclick)
+    const addStaffBtnEl = document.getElementById('addStaffBtn');
+    if (addStaffBtnEl) addStaffBtnEl.addEventListener('click', addNewStaff);
+
+    // Stollar ro'yxati (real-time)
+    function loadTables() {
+      const tablesList = document.getElementById('tablesList');
+      tablesList.innerHTML = '<p class="text-gray-500 text-center py-12">Stollar yuklanmoqda...</p>';
+
+      db.collection("tables").orderBy("number").onSnapshot(snapshot => {
+        tablesList.innerHTML = '';
+
+        if (snapshot.empty) {
+          tablesList.innerHTML = '<p class="text-gray-600 text-center py-12">Hali stol qo`shilmagan</p>';
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const table = doc.data();
+          const div = document.createElement('div');
+          div.className = "flex justify-between items-center bg-gray-50 p-5 rounded-xl border border-gray-200 hover:border-blue-300 transition";
+
+          const left = document.createElement('div');
+          const title = document.createElement('p');
+          title.className = 'font-semibold text-lg';
+          title.textContent = `Stol #${table.number}`;
+          const cap = document.createElement('p');
+          cap.className = "text-sm text-gray-600";
+          cap.textContent = `Sig'imi: ${table.capacity || '?'} kishi`;
+          left.appendChild(title);
+          left.appendChild(cap);
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-4';
+
+          const statusSpan = document.createElement('span');
+          statusSpan.className = 'px-4 py-1.5 rounded-full text-sm font-medium capitalize ' + getTableStatusColor(table.status);
+          statusSpan.textContent = table.status || "bo'sh";
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'text-red-600 hover:text-red-800 text-sm underline';
+          delBtn.type = 'button';
+          delBtn.textContent = "O'chirish";
+          delBtn.addEventListener('click', () => deleteTable(doc.id));
+
+          right.appendChild(statusSpan);
+          right.appendChild(delBtn);
+
+          div.appendChild(left);
+          div.appendChild(right);
+          tablesList.appendChild(div);
+        });
+      }, err => {
+        tablesList.innerHTML = '<p class="text-red-600 text-center py-12">Xato: stollarni yuklab bo\'lmadi</p>';
+      });
+    }
+
+    // Yangi stol qo'shish
+    document.getElementById('addTableBtn').addEventListener('click', () => {
+      const number = prompt("Stol raqamini kiriting (masalan 15):");
+      if (!number || isNaN(number)) return alert("To'g'ri raqam kiriting!");
+
+      const capacity = prompt("Sig'imini kiriting (kishi soni, masalan 6):");
+      if (!capacity || isNaN(capacity)) return alert("To'g'ri sig'im kiriting!");
+
+      const tableId = `table-${number}`;
+
+      db.collection("tables").doc(tableId).set({
+        number: Number(number),
+        capacity: Number(capacity),
+        status: "bo'sh",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      })
+      .then(() => {
+        alert(`Stol #${number} muvaffaqiyatli qo'shildi!`);
+      })
+      .catch(err => {
+        alert("Xato: " + err.message);
+      });
+    });
+
+    // Stol o'chirish
+    window.deleteTable = function(id) {
+      if (!confirm("Bu stolni o'chirasizmi?")) return;
+
+      db.collection("tables").doc(id).delete()
+        .then(() => alert("Stol o'chirildi!"))
+        .catch(err => alert("Xato: " + err.message));
+    };
+
+    // Xona boshqaruvi: add / delete / load
+    document.getElementById('addRoomBtn').addEventListener('click', () => {
+      const name = prompt("Xona nomini kiriting (masalan Xona A):");
+      if (!name) return alert("To'g'ri nom kiriting!");
+
+      const capacity = prompt("Sig'imini kiriting (kishi soni, masalan 6):");
+      if (!capacity || isNaN(capacity)) return alert("To'g'ri sig'im kiriting!");
+
+      const roomId = `room-${name.replace(/\s+/g,'_').toLowerCase()}`;
+
+      db.collection("rooms").doc(roomId).set({
+        name,
+        capacity: Number(capacity),
+        status: "bo'sh",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      })
+      .then(() => {
+        alert(`Xona "${name}" qo'shildi!`);
+      })
+      .catch(err => {
+        alert("Xato: " + err.message);
+      });
+    });
+
+    window.deleteRoom = function(id) {
+      if (!confirm("Bu xonani o'chirasizmi?")) return;
+      db.collection("rooms").doc(id).delete()
+        .then(() => alert("Xona o'chirildi!"))
+        .catch(err => alert("Xato: " + err.message));
+    };
+
+    async function loadRooms() {
+      const roomsList = document.getElementById('roomsList');
+      roomsList.innerHTML = '<p class="text-gray-500 text-center py-12">Xonalar yuklanmoqda...</p>';
+      db.collection("rooms").orderBy("name").onSnapshot(snapshot => {
+        roomsList.innerHTML = '';
+        if (snapshot.empty) {
+          roomsList.innerHTML = '<p class="text-gray-600 text-center py-12">Hali xona qo`shilmagan</p>';
+          return;
+        }
+        snapshot.forEach(doc => {
+          const room = doc.data();
+          const div = document.createElement('div');
+          div.className = "flex justify-between items-center bg-gray-50 p-5 rounded-xl border border-gray-200 hover:border-indigo-300 transition";
+
+          const left = document.createElement('div');
+          left.className = 'flex-1';
+          const nameP = document.createElement('p');
+          nameP.className = 'font-semibold text-lg';
+          nameP.textContent = room.name;
+          const capP = document.createElement('p');
+          capP.className = 'text-sm text-gray-600';
+          capP.textContent = `${room.capacity || '?'} kishi`;
+          left.appendChild(nameP);
+          left.appendChild(capP);
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-6';
+          const statusSpan = document.createElement('span');
+          statusSpan.className = 'px-4 py-1.5 rounded-full text-sm font-medium capitalize ' + getRoomStatusColor(room.status);
+          statusSpan.textContent = room.status;
+          const delBtn2 = document.createElement('button');
+          delBtn2.className = 'text-red-600 hover:text-red-800 font-medium text-sm underline';
+          delBtn2.textContent = 'O\'chirish';
+          delBtn2.addEventListener('click', () => deleteRoom(doc.id));
+          right.appendChild(statusSpan);
+          right.appendChild(delBtn2);
+
+          div.appendChild(left);
+          div.appendChild(right);
+          roomsList.appendChild(div);
+        });
+      }, err => {
+        roomsList.innerHTML = '<p class="text-red-600 text-center py-12">Xato: xonalarni yuklab bo\'lmadi</p>';
+      });
+    }
+
+    // Modal ochish/yopish
+    const modal = document.getElementById('addMenuModal');
+    const editModal = document.getElementById('editMenuModal');
+    document.getElementById('addMenuBtn').addEventListener('click', () => {
+      // refresh categories in case they changed
+      populateCategorySelect(document.getElementById('menuCategory'));
+      modal.classList.remove('hidden');
+    });
+    document.getElementById('cancelAddBtn').addEventListener('click', () => modal.classList.add('hidden'));
+    document.getElementById('cancelEditBtn').addEventListener('click', () => editModal.classList.add('hidden'));
+
+    // Yangi taom qo'shish (real vaqtda menyu yangilanadi)
+    document.getElementById('addMenuForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('menuName').value.trim();
+      const price = Number(document.getElementById('menuPrice').value);
+      const category = document.getElementById('menuCategory').value;
+
+      if (!name || price <= 0) {
+        alert("Taom nomi va narxini to'g'ri kiriting!");
+        return;
+      }
+
+      try {
+        await db.collection("menu").add({
+          name,
+          price,
+          category,
+          available: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("Taom muvaffaqiyatli qo'shildi!");
+        modal.classList.add('hidden');
+        document.getElementById('addMenuForm').reset();
+        // Menyu avtomatik yangilanadi (onSnapshot tufayli)
+      } catch (err) {
+        console.error("Taom qo'shishda xato:", err);
+        alert("Xato: " + err.message);
+      }
+    });
+
+    // Taomni tahrirlash
+    window.editMenuItem = function(id, name, price, category, available) {
+      const editModal = document.getElementById('editMenuModal');
+      document.getElementById('editMenuName').value = name;
+      document.getElementById('editMenuPrice').value = price;
+      const categorySelect = document.getElementById('editMenuCategory');
+      populateCategorySelect(categorySelect, category);
+      document.getElementById('editMenuAvailable').value = available;
+      editModal.classList.remove('hidden');
+      editModal.currentMenuId = id;
+    };
+
+    // Taomni o'chirish
+    window.deleteMenuItem = function(id) {
+      if (!confirm("Bu taomni o'chirasizmi?")) return;
+
+      db.collection("menu").doc(id).delete()
+        .then(() => alert("Taom o'chirildi!"))
+        .catch(err => alert("Xato: " + err.message));
+    };
+
+    // Taomni saqlash (tahrirlash)
+    document.getElementById('editMenuForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const editModal = document.getElementById('editMenuModal');
+      const menuId = editModal.currentMenuId;
+      const name = document.getElementById('editMenuName').value.trim();
+      const price = Number(document.getElementById('editMenuPrice').value);
+      const category = document.getElementById('editMenuCategory').value;
+      const available = document.getElementById('editMenuAvailable').value === 'true';
+
+      if (!name || price <= 0) {
+        alert("Taom nomi va narxini to'g'ri kiriting!");
+        return;
+      }
+
+      try {
+        await db.collection("menu").doc(menuId).update({
+          name,
+          price,
+          category,
+          available,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("Taom muvaffaqiyatli tahrirlandi!");
+        editModal.classList.add('hidden');
+        // Menyu avtomatik yangilanadi (onSnapshot tufayli)
+      } catch (err) {
+        console.error("Taom tahrirlashda xato:", err);
+        alert("Xato: " + err.message);
+      }
+    });
+
+    // Menyu ro'yxatini real-time yuklash
+    function loadMenu() {
+      const menuList = document.getElementById('menuList');
+      menuList.innerHTML = '<p class="text-gray-500 text-center py-12">Menyu yuklanmoqda...</p>';
+
+      db.collection("menu")
+        .orderBy("createdAt", "desc")
+        .onSnapshot(snapshot => {
+          menuList.innerHTML = '';
+
+          if (snapshot.empty) {
+            menuList.innerHTML = '<p class="text-gray-600 text-center py-12">Menyu hali bo\'sh</p>';
+            return;
+          }
+
+          snapshot.forEach(doc => {
+            const item = doc.data();
+            const card = document.createElement('div');
+            card.className = "flex flex-col sm:flex-row sm:items-center justify-between bg-gray-50 p-5 rounded-xl border border-gray-200 hover:border-indigo-300 transition gap-4";
+
+            // info block (name + category)
+            const info = document.createElement('div');
+            info.className = "flex-1";
+            const nameP = document.createElement('p');
+            nameP.className = "font-semibold text-lg";
+            nameP.textContent = item.name;
+            const catP = document.createElement('p');
+            catP.className = "text-sm text-gray-600";
+            catP.textContent = item.category;
+            info.appendChild(nameP);
+            info.appendChild(catP);
+
+            // actions block (price, status, edit, delete)
+            const actions = document.createElement('div');
+            actions.className = "flex items-center gap-6 flex-wrap";
+
+            const priceSpan = document.createElement('span');
+            priceSpan.className = "font-bold text-indigo-700";
+            priceSpan.textContent = item.price.toLocaleString() + " so'm";
+
+            const availSpan = document.createElement('span');
+            availSpan.className = "px-3 py-1 rounded-full text-sm font-medium " +
+              (item.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+            availSpan.textContent = item.available ? 'Mavjud' : 'Tugagan';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = "text-blue-600 hover:text-blue-800 font-medium text-sm underline";
+            editBtn.textContent = 'Tahrirlash';
+            editBtn.addEventListener('click', () => {
+              editMenuItem(doc.id, item.name, item.price, item.category, item.available);
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.className = "text-red-600 hover:text-red-800 font-medium text-sm underline";
+            delBtn.textContent = "O'chirish";
+            delBtn.addEventListener('click', () => {
+              deleteMenuItem(doc.id);
+            });
+
+            actions.appendChild(priceSpan);
+            actions.appendChild(availSpan);
+            actions.appendChild(editBtn);
+            actions.appendChild(delBtn);
+
+            card.appendChild(info);
+            card.appendChild(actions);
+            menuList.appendChild(card);
+          });
+        }, err => {
+          menuList.innerHTML = '<p class="text-red-600 text-center py-12">Xato: menyuni yuklab bo\'lmadi</p>';
+        });
+    }
+
+    // ---------- reports logic ----------
+    async function loadReports() {
+      // compute today's range
+      const start = new Date();
+      start.setHours(0,0,0,0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+
+      try {
+        const snap = await db.collection('orders')
+          .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(start))
+          .where('createdAt', '<', firebase.firestore.Timestamp.fromDate(end))
+          .get();
+
+        let total = 0;
+        let count = 0;
+        const itemCounts = {};
+        let tablesTotal = 0, tablesCount = 0;
+        let roomsTotal = 0, roomsCount = 0;
+
+        snap.forEach(doc => {
+          const o = doc.data();
+          if (o.total) total += o.total;
+          count += 1;
+          if (o.placeType === 'table') {
+            tablesTotal += o.total || 0;
+            tablesCount += 1;
+          } else if (o.placeType === 'room') {
+            roomsTotal += o.total || 0;
+            roomsCount += 1;
+          }
+          if (Array.isArray(o.items)) {
+            o.items.forEach(i => {
+              const name = i.name || i.id || 'noma\'lum';
+              const qty = i.quantity || 1;
+              itemCounts[name] = (itemCounts[name] || 0) + qty;
+            });
+          }
+        });
+
+        document.getElementById('salesToday').textContent = total.toLocaleString('uz-UZ') + " so'm";
+        document.getElementById('ordersCount').textContent = count + " ta";
+        let best = {name: "Hali ma'lumot yo'q", qty: 0};
+        for (const k in itemCounts) {
+          if (itemCounts[k] > best.qty) {
+            best = {name: k, qty: itemCounts[k]};
+          }
+        }
+        document.getElementById('topItem').textContent = best.qty > 0 ? `${best.name} (${best.qty})` : best.name;
+
+        // place statistics
+        const placeCounts = {};
+        snap.forEach(doc => {
+          const o = doc.data();
+          const pname = o.placeType && o.placeName ? `${o.placeType==='table' ? 'Stol' : 'Xona'} ${o.placeName}` : 'noma\'lum';
+          placeCounts[pname] = (placeCounts[pname] || 0) + 1;
+        });
+        let bestPlace = {name: "Hozircha yo'q", qty: 0};
+        for (const k in placeCounts) {
+          if (placeCounts[k] > bestPlace.qty) {
+            bestPlace = {name: k, qty: placeCounts[k]};
+          }
+        }
+        document.getElementById('topPlace').textContent = bestPlace.qty > 0 ? `${bestPlace.name} (${bestPlace.qty})` : bestPlace.name;
+
+        // update table/room specific stats
+        document.getElementById('tablesSales').textContent = tablesTotal.toLocaleString('uz-UZ') + " so'm";
+        document.getElementById('tablesCount').textContent = tablesCount + " ta";
+        document.getElementById('roomsSales').textContent = roomsTotal.toLocaleString('uz-UZ') + " so'm";
+        document.getElementById('roomsCount').textContent = roomsCount + " ta";
+      } catch (e) {
+        console.error('Hisobot yuklash xatosi:', e);
+      }
+    }
+
+    async function clearReports() {
+      if (!confirm("Barcha buyurtmalar o'chirilsinmi? Bu qaytarilmaydi.")) return;
+      try {
+        const snap = await db.collection('orders').get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        showNotification("Buyurtmalar o'chirildi", 'success', 3000);
+        loadReports();
+      } catch (e) {
+        console.error('Clear reports failed:', e);
+        showNotification('Xato: ' + e.message, 'error', 5000);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('clearReportsBtn');
+      if (btn) btn.addEventListener('click', clearReports);
+    });
+
+    // Load job applications
+    function loadApplications() {
+      const list = document.getElementById('applicationsList');
+      db.collection('job_applications').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        list.innerHTML = '';
+        if (snapshot.empty) {
+          list.innerHTML = '<p class="text-gray-500 text-center py-10">Hozircha arizalar yo‘q</p>';
+          return;
+        }
+        snapshot.forEach(doc => {
+          const app = doc.data();
+          const div = document.createElement('div');
+          div.className = 'bg-gray-50 p-4 rounded-lg border';
+          div.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-bold">${app.name}</h3>
+                <p class="text-sm text-gray-600">Telefon: ${app.phone}</p>
+                <p class="text-sm text-gray-600">Manzil: ${app.address}</p>
+                <p class="text-sm text-gray-600">Lavozim: ${app.position}</p>
+                <p class="text-sm text-gray-600">Tajriba: ${app.experience} yil</p>
+                <p class="text-sm text-gray-600">Xabar: ${app.message || 'Yo‘q'}</p>
+                <p class="text-sm text-gray-500">Vaqt: ${app.createdAt ? app.createdAt.toDate().toLocaleString() : 'Noma\'lum'}</p>
+              </div>
+              <div class="flex space-x-2">
+                <button class="approve bg-green-500 text-white px-3 py-1 rounded text-sm" data-id="${doc.id}">Tasdiqlash</button>
+                <button class="reject bg-red-500 text-white px-3 py-1 rounded text-sm" data-id="${doc.id}">Rad etish</button>
+              </div>
+            </div>
+          `;
+          list.appendChild(div);
+
+          div.querySelector('.approve').addEventListener('click', () => updateApplicationStatus(doc.id, 'tasdiqlandi'));
+          div.querySelector('.reject').addEventListener('click', () => updateApplicationStatus(doc.id, 'rad etildi'));
+        });
+      });
+    }
+
+    async function updateApplicationStatus(id, status) {
+      try {
+        // fetch existing document
+        const appDoc = await db.collection('job_applications').doc(id).get();
+        if (appDoc.exists) {
+          const data = appDoc.data();
+          // write to archive collection with extra metadata
+          await db.collection('job_applications_archive').add({
+            ...data,
+            status,
+            archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            originalId: id
+          });
+          // update original status so user still sees it
+          await db.collection('job_applications').doc(id).update({
+            status,
+            archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        showNotification(`Ariza ${status === 'tasdiqlandi' ? 'tasdiqlandi' : 'rad etildi'}!`, 'success', 3000);
+      } catch (err) {
+        showNotification('Xato: ' + err.message, 'error', 5000);
+      }
+    }
+
+    // Load applications on page load
+    loadApplications();
+
+    // realtime refresh for reports
+    db.collection('orders').onSnapshot(() => {
+      loadReports();
+    });
+  </script>
+
+</body>
+</html>
