@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
 
@@ -94,6 +95,56 @@ exports.addStaff = functions.https.onCall(async (data, context) => {
   } catch (err) {
     throw new functions.https.HttpsError('internal', err.message || 'Ichki server xatosi');
   }
+});
+
+// HTTP endpoint alternative with explicit CORS support
+exports.addStaffHttp = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Only POST allowed');
+    }
+
+    // verify Firebase ID token if provided
+    const authHeader = req.headers.authorization || '';
+    let requesterRole = null;
+    if (authHeader.startsWith('Bearer ')) {
+      const idToken = authHeader.split('Bearer ')[1];
+      try {
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        const doc = await admin.firestore().collection('users').doc(decoded.uid).get();
+        requesterRole = doc.exists ? doc.data().role : null;
+      } catch (e) {
+        console.warn('Token verify failed', e);
+      }
+    }
+
+    if (requesterRole !== 'admin') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const { email, password, name, role } = req.body;
+    if (!email || !password || !name || !role) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+    const allowedRoles = ['admin', 'ofitsiant', 'kassa', 'oshxona'];
+    if (!allowedRoles.includes(role.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    try {
+      const userRecord = await admin.auth().createUser({ email, password, displayName: name });
+      await admin.firestore().collection('users').doc(userRecord.uid).set({
+        email,
+        name,
+        role: role.toLowerCase(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      await admin.auth().setCustomUserClaims(userRecord.uid, { role: role.toLowerCase() });
+      return res.json({ uid: userRecord.uid });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
 });
 
   db.collection("orders")
