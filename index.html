@@ -32,6 +32,9 @@
         <button id="usersBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium transition shadow-md">
           Ro‘yxatdan o‘tish
         </button>
+        <button id="staffBtn" class="bg-gray-700 hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition shadow-md">
+          Xodimlar uchun
+        </button>
         <button id="loginBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition shadow-md hidden">
           Kirish
         </button>
@@ -52,6 +55,9 @@
       <div class="flex flex-col sm:flex-row justify-center gap-6">
         <button id="usersBtnMain" class="bg-yellow-500 hover:bg-yellow-600 text-white px-12 py-5 rounded-xl text-2xl font-bold transition shadow-xl transform hover:scale-105">
           Ro‘yxatdan o‘tish
+        </button>
+        <button id="staffBtnMain" class="bg-gray-700 hover:bg-gray-800 text-white px-12 py-5 rounded-xl text-2xl font-bold transition shadow-xl transform hover:scale-105">
+          Xodimlar uchun
         </button>
         <button id="loginBtnMain" class="bg-blue-500 hover:bg-blue-600 text-white px-12 py-5 rounded-xl text-2xl font-bold transition shadow-xl transform hover:scale-105 hidden">
           Kirish
@@ -131,18 +137,30 @@
       });
     }
 
-    // Check if customer is registered
-    const customerId = localStorage.getItem('customerId');
-    if (customerId) {
-      // Show login buttons
-      document.getElementById('loginBtn').classList.remove('hidden');
-      document.getElementById('loginBtnMain').classList.remove('hidden');
-      // Hide registration buttons or adjust text
-      document.getElementById('usersBtn').textContent = 'Qayta ro‘yxatdan o‘tish';
-      document.getElementById('usersBtnMain').textContent = 'Qayta ro‘yxatdan o‘tish';
+    // Check if customer is registered (customerId stored) or still logged in via Firebase
+    function updateCustomerButtons() {
+      const customerId = localStorage.getItem('customerId');
+      const isLogged = !!auth.currentUser;
+      if (customerId || isLogged) {
+        // Show login buttons
+        document.getElementById('loginBtn').classList.remove('hidden');
+        document.getElementById('loginBtnMain').classList.remove('hidden');
+        // change register button text
+        document.getElementById('usersBtn').textContent = 'Qayta ro‘yxatdan o‘tish';
+        document.getElementById('usersBtnMain').textContent = 'Qayta ro‘yxatdan o‘tish';
+      } else {
+        document.getElementById('loginBtn').classList.add('hidden');
+        document.getElementById('loginBtnMain').classList.add('hidden');
+      }
     }
 
-    // Login button listeners
+    updateCustomerButtons();
+    // also update on auth state change in case user is still signed in
+    auth.onAuthStateChanged(user => {
+      updateCustomerButtons();
+    });
+
+    // Login button listeners (customers)
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
       loginBtn.addEventListener('click', () => {
@@ -153,6 +171,20 @@
     if (loginBtnMain) {
       loginBtnMain.addEventListener('click', () => {
         window.location.href = 'customer-dashboard.html';
+      });
+    }
+
+    // Staff access buttons
+    const staffBtn = document.getElementById('staffBtn');
+    if (staffBtn) {
+      staffBtn.addEventListener('click', () => {
+        window.location.href = 'login.html';
+      });
+    }
+    const staffBtnMain = document.getElementById('staffBtnMain');
+    if (staffBtnMain) {
+      staffBtnMain.addEventListener('click', () => {
+        window.location.href = 'login.html';
       });
     }
   </script>
