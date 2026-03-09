@@ -1,13 +1,12 @@
-<<<<<<< HEAD
-# Restaurant POS System
+# choyxona-os / Restaurant POS
 
-Bu loyihada Firebase Firestore va Auth ishlatiladi.
+Bu loyiha Firebase Auth va Firestore asosidagi restoran POS tizimini namoyish etadi.
 
 ## O'rnatish
 
 1. **Firebase loyihasini yarating va konfiguratsiyani o'rnating.**
    - Firebase Console'da yangi loyiha yarating.
-   - Authentication va Firestore'ni yoqing.
+   - Authentication (Email/Password va Anonymous) va Firestore'ni yoqing.
 
 2. **Environment variables sozlang:**
    - `.env.example` faylini `.env` ga nusxalang.
@@ -18,13 +17,18 @@ Bu loyihada Firebase Firestore va Auth ishlatiladi.
 3. **Service Account kaliti:**
    - Firebase Console > Project settings > Service accounts > Generate new private key
    - Yuklab olingan JSON faylini `service-account.json` sifatida saqlang (gitignore'da).
-   - Environment variable: `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json`
+   - Environment variable: `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json` (funktsiyalar yoki server ishga tushganda kerak).
 
-4. **Node.js paketlari:**
-   - `npm install`
+4. **Node.js paketlari (server/Admin):**
+   - `npm install`  (menyu va funksiyalarning bir qismi shu papkada ishlaydi)
    - Admin SDK uchun: `npm install firebase-admin dotenv`
 
-5. **Git sozlang:**
+5. **Firebase Cloud Functions (ixtiyoriy):**
+   - `cd functions && npm install` (agar hali o'rnatilmagan bo'lsa).
+   - Loyihaga yangi `addStaff` callable funktsiyasi qo'shildi, u orqali brauzerdan yangi xodim yaratish mumkin.
+   - Fuctionsni joylashtirish uchun: `firebase deploy --only functions`.
+
+6. **Git sozlang:**
    - Git o'rnating agar yo'q bo'lsa.
    - `git init` (agar repo yo'q bo'lsa)
    - `git add .`
@@ -36,31 +40,20 @@ Bu loyihada Firebase Firestore va Auth ishlatiladi.
 - Service account fayllarini GitHub'ga yuklamang.
 - `.env` faylini ignore qiling.
 - Agar kalitlar oshkor bo'lsa, yangisini yarating va eskisini o'chiring.
+- Brauzerda hech qachon to'liq admin JSON yoki parollar saqlanmaydi.
 
 ## Ishga tushirish
 
-- Frontend: Fayllarni serverda oching (Live Server yoki Python server).
-- Admin skriptlari: `node set-role.js` (rol berish uchun).
+- Frontend: Fayllarni oddiy HTTP server bilan oching (Live Server, `python -m http.server` va hokazo).
+- Admin sahifasida yangi xodim qo'shish uchun sahifadagi “+ Yangi xodim qo'shish” tugmasidan foydalaning;
+  u sizdan email, parol, ismi va rolni so'raydi va backendga so'rov yuboradi.
+- Yangi xodim yaratish faqat `admin` roliga ega foydalanuvchilar uchun ochiq.
 
 ## Firebase Rules
 
-Firestore va Auth qoidalari xavfsizlik uchun sozlangan bo'lishi kerak. Masalan:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-```
+(...)  ## qoidalar qismini hozirgacha bo'ladi (kattalashishi mumkin)
 
 ## Keyingi qadamlar
 
 - Git status tekshiring: `git status` – maxfiy fayllar ko'rinmasligi kerak.
 - Agar tarixni tozalash kerak: `git filter-repo --invert-paths --paths-from-file .gitignore` (filter-repo o'rnating).
-=======
-# choyxona-os
->>>>>>> fca7190c8473b4d1ddeb1aed504cc425d0982e7d
