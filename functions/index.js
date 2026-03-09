@@ -50,6 +50,52 @@ exports.notifyOfitsiantWhenReady = functions.firestore
     return null;
   });
 
+// Callable function for creating new staff accounts
+exports.addStaff = functions.https.onCall(async (data, context) => {
+  // security checks
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Kirishingiz talab etiladi');
+  }
+
+  const requesterUid = context.auth.uid;
+  const requesterDoc = await admin.firestore().collection('users').doc(requesterUid).get();
+  const requesterData = requesterDoc.exists ? requesterDoc.data() : {};
+  if (requesterData.role !== 'admin') {
+    throw new functions.https.HttpsError('permission-denied', 'Faqat adminlar yangi xodim qo`sha oladi');
+  }
+
+  const { email, password, name, role } = data;
+  if (!email || !password || !name || !role) {
+    throw new functions.https.HttpsError('invalid-argument', 'Email, parol, ism va rol kiritilishi kerak');
+  }
+
+  const allowedRoles = ['admin', 'ofitsiant', 'kassa', 'oshxona'];
+  if (!allowedRoles.includes(role.toLowerCase())) {
+    throw new functions.https.HttpsError('invalid-argument', 'Roli noto`g`ri');
+  }
+
+  try {
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
+    // save to Firestore as well (front-end code relies on this collection)
+    await admin.firestore().collection('users').doc(userRecord.uid).set({
+      email,
+      name,
+      role: role.toLowerCase(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    // optional: set custom claim for role in auth token
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role: role.toLowerCase() });
+
+    return { uid: userRecord.uid };
+  } catch (err) {
+    throw new functions.https.HttpsError('internal', err.message || 'Ichki server xatosi');
+  }
+});
+
   db.collection("orders")
   .where("ofitsiantId", "==", auth.currentUser.uid)
   .where("status", "==", "tayyor")
