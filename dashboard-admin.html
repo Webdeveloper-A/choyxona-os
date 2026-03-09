@@ -9,6 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
   <script src="assets/js/helpers.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -420,9 +421,43 @@
       }
     };
 
-    // Yangi xodim (hozircha alert)
-    window.addNewStaff = function() {
-      alert("Yangi xodim qo'shish hali to'liq emas.\n\nQadamlar:\n1. Firebase Authentication → Add user\n2. Firestore users kolleksiyasiga document qo'shing:\n   ID = UID\n   email, name, role maydonlari");
+    // Yangi xodim qo'shish – barcha maydonlarni prompt orqali so'raydi
+    // va callable funktsiyani chaqiradi. Admin roli talab qilinadi.
+    window.addNewStaff = async function() {
+      if (typeof firebase.functions !== 'function') {
+        alert('Cloud Functions SDK yo\'q yoki `addStaff` funktsiyasi mavjud emas.');
+        alert('Yangi xodim qo\'shish uchun quyidagi amallarni qo\'lda bajaring:\n1. Firebase Console → Authentication → Add user.\n2. Firestore `users` kolleksiyasiga hujjat qo\'shing (ID = UID) va email, name, role maydonlarini kiriting.');
+        return;
+      }
+
+      const email = prompt("Yangi xodim emaili:");
+      if (!email) return;
+      const password = prompt("Dastlabki parol (kamida 6 belgidan):");
+      if (!password || password.length < 6) {
+        return alert('Parol kamida 6 ta belgidan iborat bo\'lishi kerak');
+      }
+      const name = prompt("Ismi:");
+      if (!name) return;
+      const role = prompt("Roli (admin, ofitsiant, kassa, oshxona):");
+      if (!role) return;
+      const allowed = ["admin", "ofitsiant", "kassa", "oshxona"];
+      if (!allowed.includes(role.toLowerCase())) {
+        return alert("Noto'g'ri rol!");
+      }
+
+      if (!confirm(`Ha, ${email} uchun yangi xodim yaratilishini tasdiqlaysizmi?`)) return;
+
+      try {
+        const addStaffFn = firebase.functions().httpsCallable('addStaff');
+        const res = await addStaffFn({
+          email, password, name, role: role.toLowerCase()
+        });
+        alert('Yangi xodim yaratildi, UID: ' + res.data.uid);
+        loadStaff();
+      } catch (err) {
+        console.error('addStaff failed', err);
+        alert('Xato: ' + (err.message || err.toString()));
+      }
     };
 
     // Wire up add staff button (avoid inline onclick)
