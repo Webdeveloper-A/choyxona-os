@@ -26,7 +26,8 @@ Bu loyiha Firebase Auth va Firestore asosidagi restoran POS tizimini namoyish et
 5. **Firebase Cloud Functions (ixtiyoriy):**
    - `cd functions && npm install` (agar hali o'rnatilmagan bo'lsa).
    - Loyihaga yangi `addStaff` callable funktsiyasi qo'shildi, u orqali brauzerdan yangi xodim yaratish mumkin.
-   - Fuctionsni joylashtirish uchun: `firebase deploy --only functions`.
+   - Agar brauzerda CORS bilan bog'liq xatolar yuzaga kelsa yoki function qaytmayotgan bo'lsa, u holda funksiyalar hali deploy qilinmagan bo'lishi mumkin – **`firebase deploy --only functions`** ni ishlating.
+   - Shuningdek `addStaffHttp` http endpoint ham mavjud, u CORS sarlavhasini avtomatik qo'shadi; POST so'rov yuborib, Authorization: Bearer &lt;ID token&gt; qo'shishingiz mumkin.
 
 6. **Git sozlang:**
    - Git o'rnating agar yo'q bo'lsa.
