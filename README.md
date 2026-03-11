@@ -1,4 +1,4 @@
-# choyxona-os / Restaurant POS
+# choyxona-pos / Restaurant POS
 
 Bu loyiha Firebase Auth va Firestore asosidagi restoran POS tizimini namoyish etadi.
 
