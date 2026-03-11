@@ -1,5 +1,5 @@
 /**
- * Shared Helper Functions for Choyxona OS
+ * Shared Helper Functions for Choyxona POS
  * Used across multiple pages for consistency
  */
 
